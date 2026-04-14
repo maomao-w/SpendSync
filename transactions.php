@@ -294,8 +294,15 @@ $total_pages = ceil($total_records / $limit);
               </tr>
             </thead>
             <tbody class="divide-y divide-white/40 text-sm">
-              <?php
+                            <?php
               $history_query = mysqli_query($conn, "SELECT * FROM transactions $where_clause ORDER BY transaction_date DESC LIMIT $limit OFFSET $offset");
+              
+              // NEW: Fetch all categories (defaults + custom) into an array so the table can display their real names
+              $cat_names = [];
+              $all_cats_query = mysqli_query($conn, "SELECT category_id, category_name FROM categories WHERE user_id IS NULL OR user_id = '$user_id'");
+              while($c = mysqli_fetch_assoc($all_cats_query)){
+                  $cat_names[$c['category_id']] = $c['category_name'];
+              }
               
               if (mysqli_num_rows($history_query) > 0) {
                   while ($row = mysqli_fetch_assoc($history_query)) {
@@ -307,7 +314,7 @@ $total_pages = ceil($total_records / $limit);
                       $icon_color = $is_income ? 'text-emerald-600' : 'text-rose-600';
                       $icon_name = $is_income ? 'arrow-down-left' : 'shopping-bag';
                       
-                      $cat_names = [1 => 'Electronics', 2 => 'Groceries', 3 => 'Food', 4 => 'Transport', 5 => 'Income', 6 => 'Housing', 7 => 'Entertainment', 8 => 'Utilities'];
+                      // UPDATED: Dynamically get the name from the array we built above
                       $category_name = isset($cat_names[$row['category_id']]) ? $cat_names[$row['category_id']] : 'Other';
 
                       echo "
