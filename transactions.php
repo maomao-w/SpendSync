@@ -264,15 +264,15 @@ $total_pages = ceil($total_records / $limit);
         
         <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
           <select name="filter" onchange="this.form.submit()" class="flex-1 lg:flex-none px-4 py-3 bg-white/60 backdrop-blur-md border border-white text-slate-700 text-sm font-medium rounded-xl hover:bg-white/80 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 cursor-pointer">
-              <option value="">All Categories</option>
-              <option value="1" <?php if(isset($_GET['filter']) && $_GET['filter']=='1') echo 'selected'; ?>>Electronics</option>
-              <option value="2" <?php if(isset($_GET['filter']) && $_GET['filter']=='2') echo 'selected'; ?>>Groceries</option>
-              <option value="3" <?php if(isset($_GET['filter']) && $_GET['filter']=='3') echo 'selected'; ?>>Food</option>
-              <option value="4" <?php if(isset($_GET['filter']) && $_GET['filter']=='4') echo 'selected'; ?>>Transport</option>
-              <option value="5" <?php if(isset($_GET['filter']) && $_GET['filter']=='5') echo 'selected'; ?>>Income</option>
-              <option value="6" <?php if(isset($_GET['filter']) && $_GET['filter']=='6') echo 'selected'; ?>>Housing</option>
-              <option value="7" <?php if(isset($_GET['filter']) && $_GET['filter']=='7') echo 'selected'; ?>>Entertainment</option>
-              <option value="8" <?php if(isset($_GET['filter']) && $_GET['filter']=='8') echo 'selected'; ?>>Utilities</option>
+    <option value="">All Categories</option>
+    <?php
+    $cat_query = mysqli_query($conn, "SELECT * FROM categories WHERE user_id IS NULL OR user_id = '$user_id' ORDER BY type DESC, category_name ASC");
+    while($cat = mysqli_fetch_assoc($cat_query)) {
+        // This keeps the dropdown on the chosen category after filtering
+        $selected = (isset($_GET['filter']) && $_GET['filter'] == $cat['category_id']) ? 'selected' : '';
+        echo "<option value='" . $cat['category_id'] . "' $selected>" . htmlspecialchars($cat['category_name']) . " (" . $cat['type'] . ")</option>";
+    }
+    ?>
           </select>
           
           <button type="button" id="openModalBtn" class="flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-emerald-500 hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/30 text-white text-sm font-bold rounded-xl shadow-md transition-all duration-300">
