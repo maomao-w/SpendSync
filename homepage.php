@@ -24,7 +24,6 @@ if ($currency != 'PHP') {
     elseif ($currency == 'EUR') { $sym = '€'; $fx_rate = 0.0166; }
     elseif ($currency == 'JPY') { $sym = '¥'; $fx_rate = 2.66; }
     
-    // Subukang kumuha ng LIVE na palitan sa internet (100% Automatic)
     $api_url = "https://api.exchangerate-api.com/v4/latest/PHP";
     
     if (function_exists('curl_init')) {
@@ -43,7 +42,7 @@ if ($currency != 'PHP') {
     if ($response) {
         $data = json_decode($response, true);
         if (isset($data['rates'][$currency])) {
-            $fx_rate = $data['rates'][$currency]; // Eto na yung exact rate (e.g., 2.659962)
+            $fx_rate = $data['rates'][$currency]; 
         }
     }
 }
@@ -531,15 +530,16 @@ $notif_count = count($notifications);
                         <div class="space-y-2">
                             <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Category</label>
                             <select name="category_id" class="w-full px-4 py-3 text-sm border border-white rounded-xl bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-medium text-slate-800 transition-colors shadow-sm" required>
-                                <option value="1">Electronics</option>
-                                <option value="2">Groceries</option>
-                                <option value="3">Food</option>
-                                <option value="4">Transport</option>
-                                <option value="5">Income</option>
-                                <option value="6">Housing</option>
-                                <option value="7">Entertainment</option>
-                                <option value="8">Utilities</option>
-                            </select>
+    <option value="" disabled selected>Select a category</option>
+    <?php
+    // Fetch system defaults AND the logged-in user's custom categories
+    $cat_query = mysqli_query($conn, "SELECT * FROM categories WHERE user_id IS NULL OR user_id = '$user_id' ORDER BY type DESC, category_name ASC");
+    while($cat = mysqli_fetch_assoc($cat_query)) {
+        echo "<option value='" . $cat['category_id'] . "'>" . htmlspecialchars($cat['category_name']) . " (" . $cat['type'] . ")</option>";
+    }
+    ?>
+</select>
+
                         </div>
                         <div class="space-y-2">
                             <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Date</label>
