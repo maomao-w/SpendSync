@@ -1,7 +1,26 @@
 <?php
 include 'session_manager.php';
 include 'config.php';
+
+$user_id = $_SESSION['user_id'];
+
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_goal'])) {
+    $goal_name = mysqli_real_escape_string($conn, $_POST['goal_name']);
+    $target_amount = (float)$_POST['target_amount'];
+    $target_date = $_POST['target_date']; // Format usually comes as YYYY-MM
+    $current_amount = !empty($_POST['current_amount']) ? (float)$_POST['current_amount'] : 0;
+
+    $sql = "INSERT INTO goals (user_id, goal_name, target_amount, current_amount, target_date) 
+            VALUES ('$user_id', '$goal_name', '$target_amount', '$current_amount', '$target_date')";
+            
+    if (mysqli_query($conn, $sql)) {
+        echo "<script>alert('Goal created successfully!'); window.location.href='goals.php';</script>";
+    } else {
+        echo "<script>alert('Error: " . mysqli_error($conn) . "');</script>";
+    }
+}
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
