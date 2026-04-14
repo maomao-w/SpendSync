@@ -13,16 +13,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_budget'])) {
             VALUES ('$user_id', '$category_id', '$amount', '$month_year')";
             
     if (mysqli_query($conn, $sql)) {
-        echo "<script>alert('Budget created successfully!'); window.location.href='budgets.php';</script>";
-    } else {
-        echo "<script>alert('Error: " . mysqli_error($conn) . "');</script>";
+        header("Location: budgets.php");
+        exit();
     }
 }
 
 $total_budget_q = mysqli_query($conn, "SELECT SUM(amount) as total FROM budgets WHERE user_id = '$user_id' AND month_year = '$month_year'");
 $total_budget = mysqli_fetch_assoc($total_budget_q)['total'] ?? 0;
 
-$total_spent_q = mysqli_query($conn, "SELECT SUM(amount) as total FROM transactions WHERE user_id = '$user_id' AND type = 'Expense' AND DATE_FORMAT(transaction_date, '%Y-%m-01') = '$month_year'");
+$total_spent_q = mysqli_query($conn, "SELECT SUM(t.amount) as total FROM transactions t INNER JOIN budgets b ON t.category_id = b.category_id WHERE t.user_id = '$user_id' AND t.type = 'Expense' AND DATE_FORMAT(t.transaction_date, '%Y-%m-01') = '$month_year' AND b.month_year = '$month_year'");
 $total_spent = mysqli_fetch_assoc($total_spent_q)['total'] ?? 0;
 
 $remaining_budget = $total_budget - $total_spent;
@@ -268,7 +267,7 @@ $spent_percent = ($total_budget > 0) ? min(100, round(($total_spent / $total_bud
         <div class="relative z-10">
           <h2 class="text-blue-100 font-bold tracking-wider uppercase text-xs mb-2">Total Monthly Budget</h2>
           <div class="flex items-end gap-3 mb-6">
-            <span class="text-5xl font-bold font-title tracking-tight">₱<?php echo number_format($remaining_budget, 2); ?></span>
+            <span class="text-5xl font-bold font-title tracking-tight">₱<?php echo number_format(max(0, $remaining_budget), 2); ?></span>
             <span class="text-blue-200 font-medium mb-1.5">/ ₱<?php echo number_format($total_budget, 2); ?></span>
           </div>
           <div class="space-y-3">
