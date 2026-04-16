@@ -357,13 +357,13 @@ $spent_percent = ($total_budget > 0) ? min(100, round(($total_spent / $total_bud
                     <div class="space-y-2">
                         <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Category Name</label>
                         <select name="category_id" class="w-full px-4 py-3 text-sm border border-white rounded-xl bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-medium text-slate-800 transition-colors shadow-sm cursor-pointer" required>
-                            <option value="6">Housing</option>
-                            <option value="2">Groceries</option>
-                            <option value="3">Food</option>
-                            <option value="4">Transport</option>
-                            <option value="7">Entertainment</option>
-                            <option value="8">Utilities</option>
-                        </select>
+    <?php
+    $cat_query = mysqli_query($conn, "SELECT category_id, category_name FROM categories ORDER BY category_name ASC");
+    while($cat = mysqli_fetch_assoc($cat_query)) {
+        echo "<option value='{$cat['category_id']}'>{$cat['category_name']}</option>";
+    }
+    ?>
+</select>
                     </div>
                     <div class="space-y-2">
                         <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Monthly Amount</label>
