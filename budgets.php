@@ -286,7 +286,7 @@ $spent_percent = ($total_budget > 0) ? min(100, round(($total_spent / $total_bud
 
       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
         <?php
-        $budgets_q = mysqli_query($conn, "SELECT * FROM budgets WHERE user_id = '$user_id' AND month_year = '$month_year'");
+        $budgets_q = mysqli_query($conn, "SELECT b.*, c.category_name FROM budgets b JOIN categories c ON b.category_id = c.category_id WHERE b.user_id = '$user_id' AND b.month_year = '$month_year'");
         $colors = [
             1 => ['bg' => 'bg-indigo-100', 'text' => 'text-indigo-600', 'bar' => 'bg-indigo-500', 'icon' => 'monitor'],
             2 => ['bg' => 'bg-emerald-100', 'text' => 'text-emerald-600', 'bar' => 'bg-emerald-500', 'icon' => 'shopping-cart'],
@@ -296,14 +296,13 @@ $spent_percent = ($total_budget > 0) ? min(100, round(($total_spent / $total_bud
             7 => ['bg' => 'bg-blue-100', 'text' => 'text-blue-600', 'bar' => 'bg-blue-500', 'icon' => 'film'],
             8 => ['bg' => 'bg-emerald-100', 'text' => 'text-emerald-600', 'bar' => 'bg-emerald-500', 'icon' => 'zap']
         ];
-        $cat_names = [1 => 'Electronics', 2 => 'Groceries', 3 => 'Food', 4 => 'Transport', 6 => 'Housing', 7 => 'Entertainment', 8 => 'Utilities'];
-
+        
         $delay_counter = 200; 
 
         while ($b = mysqli_fetch_assoc($budgets_q)) {
             $cid = $b['category_id'];
             $limit = $b['amount'];
-            $cat_name = $cat_names[$cid] ?? 'Category';
+            $cat_name = $b['category_name'] ?? 'Custom Category';
             $theme = $colors[$cid] ?? $colors[1];
 
             $cat_spent_q = mysqli_query($conn, "SELECT SUM(amount) as cat_spent FROM transactions WHERE user_id = '$user_id' AND category_id = '$cid' AND type = 'Expense' AND DATE_FORMAT(transaction_date, '%Y-%m-01') = '$month_year'");
