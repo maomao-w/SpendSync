@@ -118,7 +118,27 @@ if ($totals_query) {
     $total_expense = 0;
 }
 
-$monthly_budget_limit = 20000; 
+// Kunin ang sum ng lahat ng category budgets ng user para sa buwang ito
+$budget_query = mysqli_query($conn, "
+    SELECT SUM(amount) as total_budget 
+    FROM budgets 
+    WHERE user_id = '$user_id' 
+    AND MONTH(month_year) = '$current_month' 
+    AND YEAR(month_year) = '$current_year'
+");
+
+if ($budget_query) {
+    $budget_data = mysqli_fetch_assoc($budget_query);
+    $monthly_budget_limit = (float)($budget_data['total_budget'] ?? 0);
+} else {
+    $monthly_budget_limit = 0;
+}
+
+// Para maiwasan ang division by zero kapag walang nai-set na budget
+$budget_used_percent = ($monthly_budget_limit > 0) ? round(($total_expense / $monthly_budget_limit) * 100) : 0;
+$budget_remaining_percent = 100 - $budget_used_percent;
+if ($budget_remaining_percent < 0) $budget_remaining_percent = 0;
+
 $budget_used_percent = ($monthly_budget_limit > 0) ? round(($total_expense / $monthly_budget_limit) * 100) : 0;
 $budget_remaining_percent = 100 - $budget_used_percent;
 if ($budget_remaining_percent < 0) $budget_remaining_percent = 0;
