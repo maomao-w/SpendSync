@@ -7,7 +7,8 @@ $user_id = $_SESSION['user_id'];
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_transaction'])) {
     $trans_id = (int)$_POST['transaction_id'];
     mysqli_query($conn, "DELETE FROM transactions WHERE transaction_id = '$trans_id' AND user_id = '$user_id'");
-    echo "<script>alert('Transaction deleted!'); window.location.href='transactions.php';</script>";
+    echo "<script>window.location.href='transactions.php?status=deleted';</script>";
+    exit();
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_transaction'])) {
@@ -17,10 +18,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_transaction'])) {
     $category_id = (int)$_POST['category_id']; 
     $date = $_POST['date'];
     $type = ($category_id == 5) ? 'Income' : 'Expense';
-    
+
     $sql = "INSERT INTO transactions (user_id, category_id, type, amount, transaction_date, description, status) 
             VALUES ('$user_id', '$category_id', '$type', '$amount', '$date', '$description', 'Completed')";
-    
+
     try {
         if (mysqli_query($conn, $sql)) {
             try {
@@ -28,19 +29,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_transaction'])) {
                 $formatted_amt = number_format($amt_float, 2);
                 $clean_desc = mysqli_real_escape_string($conn, $merchant);
                 $notif_msg = ($type == 'Income') ? "Income received: ₱$formatted_amt for $clean_desc" : "New expense added: ₱$formatted_amt for $clean_desc";
-                
-                // Auto-detect kung 'notification' o 'notifications' ang table niyo sa SQL
+
                 $table_name = 'notifications';
                 $check_table = mysqli_query($conn, "SHOW TABLES LIKE 'notifications'");
                 if ($check_table && mysqli_num_rows($check_table) > 0) {
                     $table_name = 'notifications';
                 }
-                
+
                 mysqli_query($conn, "INSERT INTO notifications (user_id, message, type) VALUES ('$user_id', '$notif_msg', '$type')");
             } catch (Exception $e) {
             }
-            
-            echo "<script>alert('Transaction saved successfully!'); window.location.href='transactions.php';</script>";
+
+            echo "<script>window.location.href='transactions.php?status=added';</script>";
+            exit();
         } else {
             echo "<script>alert('Error: " . mysqli_error($conn) . "');</script>";
         }
@@ -48,7 +49,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_transaction'])) {
         $error_message = addslashes($e->getMessage());
         echo "<script>alert('Database Error: " . $error_message . "'); window.location.href='transactions.php';</script>";
     }
-    // ---------------------------------------
 }
 
 $limit = 10; 
@@ -80,7 +80,7 @@ $total_pages = ceil($total_records / $limit);
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SpendSync - Transactions</title>
-  
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/feather-icons"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -131,7 +131,7 @@ $total_pages = ceil($total_records / $limit);
     @layer base {
       body { @apply bg-background text-foreground font-sans antialiased; }
     }
-    
+
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { @apply bg-blue-200 rounded-full; border: 1px solid rgba(0,0,0,0.02); }
@@ -144,7 +144,7 @@ $total_pages = ceil($total_records / $limit);
     }
 
     body { background-color: #f4f7f9; }
-    
+
     .glass-sidebar {
         background: rgba(255, 255, 255, 0.6);
         backdrop-filter: blur(30px);
@@ -155,7 +155,7 @@ $total_pages = ceil($total_records / $limit);
         border: 1px solid rgba(255,255,255,0.8);
         box-shadow: 0 10px 40px rgba(37,99,235,0.05);
     }
-    
+
     body > div.flex-1 {
         background: rgba(255, 255, 255, 0.3);
         backdrop-filter: blur(25px);
@@ -180,10 +180,9 @@ $total_pages = ceil($total_records / $limit);
     .blob { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.4; animation: floatBlob 15s infinite alternate; }
     .blob-blue { background: #2563eb; width: 500px; height: 500px; top: -10%; left: -10%; }
     .blob-emerald { background: #10b981; width: 400px; height: 400px; bottom: -10%; right: -10%; animation-delay: -5s; }
-    
+
     @keyframes floatBlob { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(50px, 50px) scale(1.1); } }
-    
-    /* Staggered load delays */
+
     .delay-100 { animation-delay: 100ms; opacity: 0; }
     .delay-200 { animation-delay: 200ms; opacity: 0; }
   </style>
@@ -197,7 +196,7 @@ $total_pages = ceil($total_records / $limit);
   </div>
 
   <div id="webgl-container" class="absolute inset-0 z-[-1]"></div>
-  
+
   <div id="sidebarOverlay" class="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-40 hidden md:hidden transition-opacity duration-300 opacity-0"></div>
 
   <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 md:relative md:flex w-64 flex-col glass-sidebar transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out">
@@ -207,7 +206,7 @@ $total_pages = ceil($total_records / $limit);
         <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-emerald-500">SpendSync</span>
       </div>
     </div>
-    
+
     <nav class="flex-1 py-8 space-y-3 overflow-y-auto overflow-x-hidden">
       <a href="homepage.php" class="sidebar-link"><i data-feather="layout" class="w-5 h-5"></i> Dashboard</a>
       <a href="transactions.php" class="sidebar-link active"><i data-feather="activity" class="w-5 h-5"></i> Transactions</a>
@@ -215,9 +214,9 @@ $total_pages = ceil($total_records / $limit);
       <a href="categories.php" class="sidebar-link"><i data-feather="grid" class="w-5 h-5"></i> Categories</a>  
       <a href="goals.php" class="sidebar-link"><i data-feather="target" class="w-5 h-5"></i> Goals</a>
       <a href="reports.php" class="sidebar-link"><i data-feather="file-text" class="w-5 h-5"></i> Reports</a>
-      
+
       <a href="export_csv.php" class="sidebar-link"><i data-feather="download" class="w-5 h-5"></i> Download Records CSV</a>
-      
+
       <form action="import_csv.php" method="POST" enctype="multipart/form-data" class="m-0 p-0">
         <label class="sidebar-link cursor-pointer w-full flex items-center gap-3 m-0">
           <i data-feather="upload" class="w-5 h-5"></i> <span class="flex-1">Import CSV</span>
@@ -225,12 +224,12 @@ $total_pages = ceil($total_records / $limit);
           <input type="hidden" name="import" value="1">
         </label>
       </form>  
-      
+
       <div class="pt-6 mt-6 border-t border-white/60">
         <a href="settings.php" class="sidebar-link"><i data-feather="settings" class="w-5 h-5"></i> Settings</a>
       </div>
     </nav>
-    
+
     <div class="p-4 mb-4">
       <a href="logout.php" class="sidebar-link hover:!bg-rose-50 hover:!text-rose-600 text-rose-500 font-bold">
         <i data-feather="log-out" class="w-5 h-5"></i> Logout
@@ -239,15 +238,15 @@ $total_pages = ceil($total_records / $limit);
   </aside>
 
   <div class="flex-1 flex flex-col h-full overflow-hidden relative z-10">
-    
+
     <header class="h-24 flex items-center justify-between px-8 sm:px-10 shrink-0 z-10 relative">
       <div class="flex items-center gap-4 z-20">
         <button id="menuButton" class="md:hidden p-2.5 bg-white/60 backdrop-blur-md rounded-xl border border-white text-slate-700">
           <i data-feather="menu" class="w-6 h-6"></i>
         </button>
-          
+
       </div>
-      
+
       <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none animate-fade-in-up z-10">
         <h1 class="text-3xl font-bold font-title text-slate-800">Transactions</h1>
         <p class="text-muted-foreground text-sm font-medium mt-1">View and manage your recent financial activity.</p>
@@ -261,20 +260,21 @@ $total_pages = ceil($total_records / $limit);
           <i data-feather="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
           <input type="text" name="search" value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>" placeholder="Search transactions..." class="w-full pl-11 pr-4 py-3 text-sm border border-white rounded-xl bg-white/60 backdrop-blur-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-white transition-all text-slate-700 font-medium">
         </div>
-        
+
         <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
           <select name="filter" onchange="this.form.submit()" class="flex-1 lg:flex-none px-4 py-3 bg-white/60 backdrop-blur-md border border-white text-slate-700 text-sm font-medium rounded-xl hover:bg-white/80 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 cursor-pointer">
-    <option value="">All Categories</option>
-    <?php
-    $cat_query = mysqli_query($conn, "SELECT * FROM categories WHERE user_id IS NULL OR user_id = '$user_id' ORDER BY type DESC, category_name ASC");
-    while($cat = mysqli_fetch_assoc($cat_query)) {
-        // This keeps the dropdown on the chosen category after filtering
-        $selected = (isset($_GET['filter']) && $_GET['filter'] == $cat['category_id']) ? 'selected' : '';
-        echo "<option value='" . $cat['category_id'] . "' $selected>" . htmlspecialchars($cat['category_name']) . " (" . $cat['type'] . ")</option>";
-    }
-    ?>
+            <option value="">All Categories</option>
+            <?php
+            $filter_cats = mysqli_query($conn, "SELECT * FROM categories WHERE user_id IS NULL OR user_id = '$user_id' ORDER BY type DESC, category_name ASC");
+            if ($filter_cats && mysqli_num_rows($filter_cats) > 0) {
+                while($cat = mysqli_fetch_assoc($filter_cats)) {
+                    $selected = (isset($_GET['filter']) && $_GET['filter'] == $cat['category_id']) ? 'selected' : '';
+                    echo "<option value='" . $cat['category_id'] . "' $selected>" . htmlspecialchars($cat['category_name']) . " (" . $cat['type'] . ")</option>";
+                }
+            }
+            ?>
           </select>
-          
+
           <button type="button" id="openModalBtn" class="flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-emerald-500 hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/30 text-white text-sm font-bold rounded-xl shadow-md transition-all duration-300">
             <i data-feather="plus" class="w-4 h-4"></i> Add Transaction
           </button>
@@ -294,16 +294,17 @@ $total_pages = ceil($total_records / $limit);
               </tr>
             </thead>
             <tbody class="divide-y divide-white/40 text-sm">
-                            <?php
+              <?php
               $history_query = mysqli_query($conn, "SELECT * FROM transactions $where_clause ORDER BY transaction_date DESC LIMIT $limit OFFSET $offset");
-              
-              // NEW: Fetch all categories (defaults + custom) into an array so the table can display their real names
+
               $cat_names = [];
               $all_cats_query = mysqli_query($conn, "SELECT category_id, category_name FROM categories WHERE user_id IS NULL OR user_id = '$user_id'");
-              while($c = mysqli_fetch_assoc($all_cats_query)){
-                  $cat_names[$c['category_id']] = $c['category_name'];
+              if ($all_cats_query) {
+                  while($c = mysqli_fetch_assoc($all_cats_query)){
+                      $cat_names[$c['category_id']] = $c['category_name'];
+                  }
               }
-              
+
               if (mysqli_num_rows($history_query) > 0) {
                   while ($row = mysqli_fetch_assoc($history_query)) {
                       $formatted_date = date("M d, Y", strtotime($row['transaction_date']));
@@ -313,8 +314,7 @@ $total_pages = ceil($total_records / $limit);
                       $icon_bg = $is_income ? 'bg-emerald-100' : 'bg-rose-100';
                       $icon_color = $is_income ? 'text-emerald-600' : 'text-rose-600';
                       $icon_name = $is_income ? 'arrow-down-left' : 'shopping-bag';
-                      
-                      // UPDATED: Dynamically get the name from the array we built above
+
                       $category_name = isset($cat_names[$row['category_id']]) ? $cat_names[$row['category_id']] : 'Other';
 
                       echo "
@@ -335,12 +335,9 @@ $total_pages = ceil($total_records / $limit);
                           {$amount_sign} ₱" . number_format((float)$row['amount'], 2) . "
                         </td>
                         <td class='px-8 py-5 text-center'>
-                          <form method='POST' action='' onsubmit=\"return confirm('Are you sure you want to delete this transaction?');\" class='inline'>
-                              <input type='hidden' name='transaction_id' value='{$row['transaction_id']}'>
-                              <button type='submit' name='delete_transaction' class='p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-100 hover:shadow-sm rounded-xl transition-all'>
-                                  <i data-feather='trash-2' class='w-5 h-5'></i>
-                              </button>
-                          </form>
+                           <button type='button' onclick='openDeleteModal({$row['transaction_id']})' class='p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-100 hover:shadow-sm rounded-xl transition-all'>
+                               <i data-feather='trash-2' class='w-5 h-5'></i>
+                           </button>
                         </td>
                       </tr>";
                   }
@@ -351,7 +348,7 @@ $total_pages = ceil($total_records / $limit);
             </tbody>
           </table>
         </div>
-        
+
         <div class="px-8 py-5 border-t border-white/60 flex items-center justify-between bg-white/20">
             <span class="text-sm font-medium text-slate-500">Showing <?php echo ($total_records > 0) ? $offset + 1 : 0; ?> to <?php echo min($offset + $limit, $total_records); ?> of <?php echo $total_records; ?></span>
             <div class="flex gap-2">
@@ -385,16 +382,16 @@ $total_pages = ceil($total_records / $limit);
                         <div class="space-y-2">
                             <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Category</label>
                             <select name="category_id" class="w-full px-4 py-3 text-sm border border-white rounded-xl bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-medium text-slate-800 transition-colors shadow-sm" required>
-    <option value="" disabled selected>Select a category</option>
-    <?php
-    // Fetch system defaults AND the user's custom categories
-    $cat_query = mysqli_query($conn, "SELECT * FROM categories WHERE user_id IS NULL OR user_id = '$user_id' ORDER BY type DESC, category_name ASC");
-    while($cat = mysqli_fetch_assoc($cat_query)) {
-        echo "<option value='" . $cat['category_id'] . "'>" . htmlspecialchars($cat['category_name']) . " (" . $cat['type'] . ")</option>";
-    }
-    ?>
-</select>
-
+                              <option value="" disabled selected>Select a category</option>
+                              <?php
+                              $modal_cats = mysqli_query($conn, "SELECT * FROM categories WHERE user_id IS NULL OR user_id = '$user_id' ORDER BY type DESC, category_name ASC");
+                              if ($modal_cats && mysqli_num_rows($modal_cats) > 0) {
+                                  while($cat = mysqli_fetch_assoc($modal_cats)) {
+                                      echo "<option value='" . $cat['category_id'] . "'>" . htmlspecialchars($cat['category_name']) . " (" . $cat['type'] . ")</option>";
+                                  }
+                              }
+                              ?>
+                            </select>
                         </div>
                         <div class="space-y-2">
                             <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Date</label>
@@ -409,11 +406,46 @@ $total_pages = ceil($total_records / $limit);
             </form>
         </div>
     </div>
+
+    <div id="deleteConfirmModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4 transition-opacity duration-300">
+       <div class="bg-white/80 backdrop-blur-2xl border border-white rounded-[2rem] shadow-2xl w-full max-w-sm p-6 text-center animate-modal">
+         <div class="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4 text-rose-500 shadow-inner border border-rose-200">
+           <i data-feather="alert-triangle" class="w-8 h-8"></i>
+         </div>
+         <h3 class="text-xl font-bold font-title text-slate-800 mb-2">Delete Transaction?</h3>
+         <p class="text-slate-500 font-medium mb-6">Are you sure you want to delete this transaction? This action cannot be undone.</p>
+         <form method="POST" action="">
+            <input type="hidden" name="transaction_id" id="deleteTransactionId" value="">
+            <div class="flex gap-3">
+                <button type="button" onclick="closeDeleteModal()" class="flex-1 px-5 py-3 text-sm font-bold text-slate-600 bg-white/60 border border-white hover:bg-white hover:shadow-sm rounded-xl transition-all">Cancel</button>
+                <button type="submit" name="delete_transaction" class="flex-1 px-5 py-3 text-sm font-bold text-white bg-gradient-to-r from-rose-500 to-red-500 hover:shadow-lg hover:shadow-rose-500/30 hover:-translate-y-0.5 rounded-xl transition-all">Delete</button>
+            </div>
+         </form>
+       </div>
+    </div>
+
+    <?php if (isset($_GET['status']) && in_array($_GET['status'], ['added', 'deleted'])): ?>
+    <div id="successStatusModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4 transition-opacity duration-300">
+       <div class="bg-white/80 backdrop-blur-2xl border border-white rounded-[2rem] shadow-2xl w-full max-w-sm p-6 text-center animate-modal">
+         <div class="w-16 h-16 <?php echo $_GET['status'] == 'deleted' ? 'bg-rose-100 text-rose-500 border-rose-200' : 'bg-emerald-100 text-emerald-500 border-emerald-200'; ?> rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner border">
+           <i data-feather="<?php echo $_GET['status'] == 'deleted' ? 'trash-2' : 'check-circle'; ?>" class="w-8 h-8"></i>
+         </div>
+         <h3 class="text-xl font-bold font-title text-slate-800 mb-2">
+             <?php echo $_GET['status'] == 'deleted' ? 'Deleted!' : 'Success!'; ?>
+         </h3>
+         <p class="text-slate-500 font-medium mb-6">
+             <?php echo $_GET['status'] == 'deleted' ? 'Transaction has been successfully removed.' : 'Transaction saved successfully!'; ?>
+         </p>
+         <button onclick="closeSuccessStatusModal()" class="w-full px-5 py-3 text-sm font-bold text-white bg-gradient-to-r <?php echo $_GET['status'] == 'deleted' ? 'from-rose-500 to-red-400' : 'from-emerald-500 to-teal-400'; ?> hover:shadow-lg hover:-translate-y-0.5 rounded-xl transition-all">Continue</button>
+       </div>
+    </div>
+    <?php endif; ?>
+
   </div>
 
   <script>
     feather.replace();
-    
+
     // SIDEBAR LOGIC
     const menuButton = document.getElementById('menuButton');
     const sidebar = document.getElementById('sidebar');
@@ -432,7 +464,7 @@ $total_pages = ceil($total_records / $limit);
     menuButton?.addEventListener('click', toggleSidebar);
     overlay?.addEventListener('click', toggleSidebar);
 
-    // MODAL LOGIC
+    // ADD MODAL LOGIC
     const openModalBtn = document.getElementById('openModalBtn');
     const closeModalBtn = document.getElementById('closeModalBtn');
     const cancelModalBtn = document.getElementById('cancelModalBtn');
@@ -444,6 +476,26 @@ $total_pages = ceil($total_records / $limit);
     closeModalBtn?.addEventListener('click', closeModal);
     cancelModalBtn?.addEventListener('click', closeModal);
     modalBackdrop?.addEventListener('click', (e) => { if (e.target === modalBackdrop) closeModal(); });
+
+    // DELETE MODAL LOGIC
+    function openDeleteModal(id) {
+        document.getElementById('deleteTransactionId').value = id;
+        document.getElementById('deleteConfirmModal').classList.remove('hidden');
+    }
+    function closeDeleteModal() {
+        document.getElementById('deleteConfirmModal').classList.add('hidden');
+    }
+
+    // SUCCESS / STATUS MODAL LOGIC
+    function closeSuccessStatusModal() {
+        const modal = document.getElementById('successStatusModal');
+        if(modal) {
+            modal.style.display = 'none';
+            const url = new URL(window.location);
+            url.searchParams.delete('status');
+            window.history.replaceState({}, '', url);
+        }
+    }
 
     // ==========================================
     // THREE.JS BACKGROUND
@@ -484,7 +536,7 @@ $total_pages = ceil($total_records / $limit);
         for(let i = 0; i < 40; i++) {
             const randomType = Math.random();
             const yPos = 10 - (Math.random() * 25); 
-            
+
             if(randomType < 0.33) {
                 const coin = spawnObject(new THREE.CylinderGeometry(0.5, 0.5, 0.1, 32), goldCoinMat, yPos);
                 coin.rotation.x = Math.PI / 2;
@@ -512,7 +564,7 @@ $total_pages = ceil($total_records / $limit);
             camera.position.x += (mouseX * 2 - camera.position.x) * 0.05;
             camera.position.y += (2 + -mouseY * 2 - camera.position.y) * 0.05;
             camera.lookAt(0, 0, 0);
-            
+
             bgObjects.forEach((obj) => {
                 obj.mesh.rotation.x += obj.rotX;
                 obj.mesh.rotation.y += obj.rotY;
