@@ -7,6 +7,7 @@ $user_id = $_SESSION['user_id'];
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_transaction'])) {
     $trans_id = (int)$_POST['transaction_id'];
     mysqli_query($conn, "DELETE FROM transactions WHERE transaction_id = '$trans_id' AND user_id = '$user_id'");
+    // Binago ang alert at pinalitan ng redirect parameter para ma-trigger ang custom UI pop-up
     echo "<script>window.location.href='transactions.php?status=deleted';</script>";
     exit();
 }
@@ -40,6 +41,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_transaction'])) {
             } catch (Exception $e) {
             }
 
+            // Binago rin dito
             echo "<script>window.location.href='transactions.php?status=added';</script>";
             exit();
         } else {
@@ -265,12 +267,10 @@ $total_pages = ceil($total_records / $limit);
           <select name="filter" onchange="this.form.submit()" class="flex-1 lg:flex-none px-4 py-3 bg-white/60 backdrop-blur-md border border-white text-slate-700 text-sm font-medium rounded-xl hover:bg-white/80 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 cursor-pointer">
             <option value="">All Categories</option>
             <?php
-            $filter_cats = mysqli_query($conn, "SELECT * FROM categories WHERE user_id IS NULL OR user_id = '$user_id' ORDER BY type DESC, category_name ASC");
-            if ($filter_cats && mysqli_num_rows($filter_cats) > 0) {
-                while($cat = mysqli_fetch_assoc($filter_cats)) {
-                    $selected = (isset($_GET['filter']) && $_GET['filter'] == $cat['category_id']) ? 'selected' : '';
-                    echo "<option value='" . $cat['category_id'] . "' $selected>" . htmlspecialchars($cat['category_name']) . " (" . $cat['type'] . ")</option>";
-                }
+            $cat_query = mysqli_query($conn, "SELECT * FROM categories WHERE user_id IS NULL OR user_id = '$user_id' ORDER BY type DESC, category_name ASC");
+            while($cat = mysqli_fetch_assoc($cat_query)) {
+                $selected = (isset($_GET['filter']) && $_GET['filter'] == $cat['category_id']) ? 'selected' : '';
+                echo "<option value='" . $cat['category_id'] . "' $selected>" . htmlspecialchars($cat['category_name']) . " (" . $cat['type'] . ")</option>";
             }
             ?>
           </select>
@@ -299,10 +299,8 @@ $total_pages = ceil($total_records / $limit);
 
               $cat_names = [];
               $all_cats_query = mysqli_query($conn, "SELECT category_id, category_name FROM categories WHERE user_id IS NULL OR user_id = '$user_id'");
-              if ($all_cats_query) {
-                  while($c = mysqli_fetch_assoc($all_cats_query)){
-                      $cat_names[$c['category_id']] = $c['category_name'];
-                  }
+              while($c = mysqli_fetch_assoc($all_cats_query)){
+                  $cat_names[$c['category_id']] = $c['category_name'];
               }
 
               if (mysqli_num_rows($history_query) > 0) {
@@ -317,6 +315,7 @@ $total_pages = ceil($total_records / $limit);
 
                       $category_name = isset($cat_names[$row['category_id']]) ? $cat_names[$row['category_id']] : 'Other';
 
+                      // Modified delete button to trigger the new custom modal
                       echo "
                       <tr class='hover:bg-white/60 transition-colors group cursor-default'>
                         <td class='px-8 py-5'>
@@ -384,11 +383,9 @@ $total_pages = ceil($total_records / $limit);
                             <select name="category_id" class="w-full px-4 py-3 text-sm border border-white rounded-xl bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-medium text-slate-800 transition-colors shadow-sm" required>
                               <option value="" disabled selected>Select a category</option>
                               <?php
-                              $modal_cats = mysqli_query($conn, "SELECT * FROM categories WHERE user_id IS NULL OR user_id = '$user_id' ORDER BY type DESC, category_name ASC");
-                              if ($modal_cats && mysqli_num_rows($modal_cats) > 0) {
-                                  while($cat = mysqli_fetch_assoc($modal_cats)) {
-                                      echo "<option value='" . $cat['category_id'] . "'>" . htmlspecialchars($cat['category_name']) . " (" . $cat['type'] . ")</option>";
-                                  }
+                              $cat_query = mysqli_query($conn, "SELECT * FROM categories WHERE user_id IS NULL OR user_id = '$user_id' ORDER BY type DESC, category_name ASC");
+                              while($cat = mysqli_fetch_assoc($cat_query)) {
+                                  echo "<option value='" . $cat['category_id'] . "'>" . htmlspecialchars($cat['category_name']) . " (" . $cat['type'] . ")</option>";
                               }
                               ?>
                             </select>
@@ -477,7 +474,7 @@ $total_pages = ceil($total_records / $limit);
     cancelModalBtn?.addEventListener('click', closeModal);
     modalBackdrop?.addEventListener('click', (e) => { if (e.target === modalBackdrop) closeModal(); });
 
-    // DELETE MODAL LOGIC
+    // NEW: DELETE MODAL LOGIC
     function openDeleteModal(id) {
         document.getElementById('deleteTransactionId').value = id;
         document.getElementById('deleteConfirmModal').classList.remove('hidden');
@@ -486,11 +483,12 @@ $total_pages = ceil($total_records / $limit);
         document.getElementById('deleteConfirmModal').classList.add('hidden');
     }
 
-    // SUCCESS / STATUS MODAL LOGIC
+    // NEW: SUCCESS / STATUS MODAL LOGIC
     function closeSuccessStatusModal() {
         const modal = document.getElementById('successStatusModal');
         if(modal) {
             modal.style.display = 'none';
+            // Tinatanggal yung ?status=... sa URL para hindi mag-pop-up ulit pag ni-refresh
             const url = new URL(window.location);
             url.searchParams.delete('status');
             window.history.replaceState({}, '', url);
