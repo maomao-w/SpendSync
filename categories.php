@@ -3,7 +3,6 @@ include 'session_manager.php';
 include 'config.php';
 
 $user_id = $_SESSION['user_id'];
-$message = '';
 
 // Handle Add Custom Category
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_category'])) {
@@ -12,9 +11,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_category'])) {
     
     $insert_sql = "INSERT INTO categories (user_id, category_name, type, is_default) VALUES ('$user_id', '$category_name', '$type', FALSE)";
     if (mysqli_query($conn, $insert_sql)) {
-        $message = "<div class='mb-6 p-4 rounded-2xl bg-emerald-100/80 backdrop-blur-md text-emerald-700 font-bold border border-emerald-200 shadow-sm animate-fade-in-up'>Category added successfully!</div>";
+        header("Location: categories.php?status=added");
+        exit();
     } else {
-        $message = "<div class='mb-6 p-4 rounded-2xl bg-rose-100/80 backdrop-blur-md text-rose-700 font-bold border border-rose-200 shadow-sm animate-fade-in-up'>Error adding category.</div>";
+        header("Location: categories.php?status=error");
+        exit();
     }
 }
 
@@ -25,7 +26,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_category'])) {
     // Only delete if it belongs to the user and is NOT a default category
     $delete_sql = "DELETE FROM categories WHERE category_id = '$cat_id' AND user_id = '$user_id' AND is_default = FALSE";
     if (mysqli_query($conn, $delete_sql)) {
-        $message = "<div class='mb-6 p-4 rounded-2xl bg-emerald-100/80 backdrop-blur-md text-emerald-700 font-bold border border-emerald-200 shadow-sm animate-fade-in-up'>Category deleted successfully!</div>";
+        header("Location: categories.php?status=deleted");
+        exit();
     }
 }
 ?>
@@ -195,8 +197,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_category'])) {
           </button>
       </div>
 
-      <?php echo $message; ?>
-
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         
         <div class="dashboard-card animate-fade-in-up delay-100">
@@ -213,10 +213,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_category'])) {
                     echo "<span class='font-bold text-slate-700 flex items-center gap-3'>" . htmlspecialchars($row['category_name']) . "</span>";
                     
                     if (!$is_default) {
-                        echo "<form method='POST' class='m-0' onsubmit='return confirm(\"Delete this category?\");'>
-                                <input type='hidden' name='category_id' value='{$row['category_id']}'>
-                                <button type='submit' name='delete_category' class='text-slate-400 hover:text-rose-500 p-1.5 rounded-md hover:bg-rose-50 transition-colors'><i data-feather='trash-2' class='w-4 h-4'></i></button>
-                              </form>";
+                        echo "<button type='button' onclick='openDeleteModal({$row['category_id']})' class='text-slate-400 hover:text-rose-500 p-1.5 rounded-md hover:bg-rose-50 transition-colors'><i data-feather='trash-2' class='w-4 h-4'></i></button>";
                     } else {
                         echo "<span class='text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-100/50 px-2 py-1 rounded-md'>System</span>";
                     }
@@ -240,10 +237,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_category'])) {
                     echo "<span class='font-bold text-slate-700 flex items-center gap-3'>" . htmlspecialchars($row['category_name']) . "</span>";
                     
                     if (!$is_default) {
-                        echo "<form method='POST' class='m-0' onsubmit='return confirm(\"Delete this category?\");'>
-                                <input type='hidden' name='category_id' value='{$row['category_id']}'>
-                                <button type='submit' name='delete_category' class='text-slate-400 hover:text-rose-500 p-1.5 rounded-md hover:bg-rose-50 transition-colors'><i data-feather='trash-2' class='w-4 h-4'></i></button>
-                              </form>";
+                        echo "<button type='button' onclick='openDeleteModal({$row['category_id']})' class='text-slate-400 hover:text-rose-500 p-1.5 rounded-md hover:bg-rose-50 transition-colors'><i data-feather='trash-2' class='w-4 h-4'></i></button>";
                     } else {
                         echo "<span class='text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-100/50 px-2 py-1 rounded-md'>System</span>";
                     }
@@ -256,6 +250,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_category'])) {
       </div>
     </main>
 
+    <!-- ADD CATEGORY MODAL (same style as transactions.php) -->
     <div id="modalBackdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div id="categoryModal" class="bg-white/80 backdrop-blur-2xl border border-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden hidden animate-modal">
             <div class="flex justify-between items-center p-6 border-b border-white/60 bg-white/40">
@@ -283,6 +278,43 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_category'])) {
             </form>
         </div>
     </div>
+
+    <!-- DELETE CONFIRMATION MODAL (same as transactions.php) -->
+    <div id="deleteConfirmModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4 transition-opacity duration-300">
+       <div class="bg-white/80 backdrop-blur-2xl border border-white rounded-[2rem] shadow-2xl w-full max-w-sm p-6 text-center animate-modal">
+         <div class="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-4 text-rose-500 shadow-inner border border-rose-200">
+           <i data-feather="alert-triangle" class="w-8 h-8"></i>
+         </div>
+         <h3 class="text-xl font-bold font-title text-slate-800 mb-2">Delete Category?</h3>
+         <p class="text-slate-500 font-medium mb-6">Are you sure you want to delete this category? This action cannot be undone.</p>
+         <form method="POST" action="">
+            <input type="hidden" name="category_id" id="deleteCategoryId" value="">
+            <div class="flex gap-3">
+                <button type="button" onclick="closeDeleteModal()" class="flex-1 px-5 py-3 text-sm font-bold text-slate-600 bg-white/60 border border-white hover:bg-white hover:shadow-sm rounded-xl transition-all">Cancel</button>
+                <button type="submit" name="delete_category" class="flex-1 px-5 py-3 text-sm font-bold text-white bg-gradient-to-r from-rose-500 to-red-500 hover:shadow-lg hover:shadow-rose-500/30 hover:-translate-y-0.5 rounded-xl transition-all">Delete</button>
+            </div>
+         </form>
+       </div>
+    </div>
+
+    <!-- SUCCESS MODAL (added/deleted) -->
+    <?php if (isset($_GET['status']) && in_array($_GET['status'], ['added', 'deleted'])): ?>
+    <div id="successStatusModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4 transition-opacity duration-300">
+       <div class="bg-white/80 backdrop-blur-2xl border border-white rounded-[2rem] shadow-2xl w-full max-w-sm p-6 text-center animate-modal">
+         <div class="w-16 h-16 <?php echo $_GET['status'] == 'deleted' ? 'bg-rose-100 text-rose-500 border-rose-200' : 'bg-emerald-100 text-emerald-500 border-emerald-200'; ?> rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner border">
+           <i data-feather="<?php echo $_GET['status'] == 'deleted' ? 'trash-2' : 'check-circle'; ?>" class="w-8 h-8"></i>
+         </div>
+         <h3 class="text-xl font-bold font-title text-slate-800 mb-2">
+             <?php echo $_GET['status'] == 'deleted' ? 'Deleted!' : 'Success!'; ?>
+         </h3>
+         <p class="text-slate-500 font-medium mb-6">
+             <?php echo $_GET['status'] == 'deleted' ? 'Category has been successfully removed.' : 'Category added successfully!'; ?>
+         </p>
+         <button onclick="closeSuccessStatusModal()" class="w-full px-5 py-3 text-sm font-bold text-white bg-gradient-to-r <?php echo $_GET['status'] == 'deleted' ? 'from-rose-500 to-red-400' : 'from-emerald-500 to-teal-400'; ?> hover:shadow-lg hover:-translate-y-0.5 rounded-xl transition-all">Continue</button>
+       </div>
+    </div>
+    <?php endif; ?>
+
   </div>
 
   <script>
@@ -306,7 +338,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_category'])) {
     menuButton?.addEventListener('click', toggleSidebar);
     overlay?.addEventListener('click', toggleSidebar);
 
-    // Modal Logic
+    // Add Category Modal Logic
     const openModalBtn = document.getElementById('openModalBtn');
     const closeModalBtn = document.getElementById('closeModalBtn');
     const cancelModalBtn = document.getElementById('cancelModalBtn');
@@ -321,7 +353,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['delete_category'])) {
     cancelModalBtn?.addEventListener('click', closeModal);
     modalBackdrop?.addEventListener('click', (e) => { if (e.target === modalBackdrop) closeModal(); });
 
-    // Three.js Background
+    // Delete Modal Logic
+    function openDeleteModal(id) {
+        document.getElementById('deleteCategoryId').value = id;
+        document.getElementById('deleteConfirmModal').classList.remove('hidden');
+    }
+    function closeDeleteModal() {
+        document.getElementById('deleteConfirmModal').classList.add('hidden');
+    }
+
+    // Success Modal Close and Remove ?status
+    function closeSuccessStatusModal() {
+        const modal = document.getElementById('successStatusModal');
+        if(modal) {
+            modal.style.display = 'none';
+            const url = new URL(window.location);
+            url.searchParams.delete('status');
+            window.history.replaceState({}, '', url);
+        }
+    }
+
+    // Three.js Background (unchanged)
     try {
         const container = document.getElementById('webgl-container');
         const scene = new THREE.Scene();
