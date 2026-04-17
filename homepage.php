@@ -144,16 +144,21 @@ $budget_remaining_percent = 100 - $budget_used_percent;
 if ($budget_remaining_percent < 0) $budget_remaining_percent = 0;
 
 $top_expense_query = mysqli_query($conn, "
-    SELECT category_id, SUM(amount) as total_spent FROM transactions 
-    WHERE user_id = '$user_id' AND type = 'Expense' AND MONTH(transaction_date) = '$current_month' AND YEAR(transaction_date) = '$current_year'
-    GROUP BY category_id ORDER BY total_spent DESC LIMIT 1
+    SELECT t.category_id, c.category_name, SUM(t.amount) as total_spent 
+    FROM transactions t
+    LEFT JOIN categories c ON t.category_id = c.category_id
+    WHERE t.user_id = '$user_id' AND t.type = 'Expense' 
+    AND MONTH(t.transaction_date) = '$current_month' 
+    AND YEAR(t.transaction_date) = '$current_year'
+    GROUP BY t.category_id 
+    ORDER BY total_spent DESC LIMIT 1
 ");
+
 $top_expense = mysqli_fetch_assoc($top_expense_query);
-$cat_names = [1 => 'Electronics', 2 => 'Groceries', 3 => 'Food', 4 => 'Transport', 6 => 'Housing', 7 => 'Entertainment', 8 => 'Utilities'];
 
 if ($top_expense) {
-    $top_cat_name = $cat_names[$top_expense['category_id']] ?? 'Other';
-    // CONVERT EXPENSE PARA SA INSIGHTS
+    // Gamitin ang pangalan sa DB, kung wala, gamitin ang ID bilang fallback
+    $top_cat_name = !empty($top_expense['category_name']) ? $top_expense['category_name'] : 'Category ' . $top_expense['category_id'];
     $top_cat_amount = number_format($top_expense['total_spent'] * $fx_rate, 2);
     $insight_1 = "You spent the most on <span class='font-bold text-rose-500'>{$top_cat_name} ({$sym}{$top_cat_amount})</span> this month.";
 } else {
