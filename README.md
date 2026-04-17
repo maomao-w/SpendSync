@@ -24,7 +24,7 @@ SpendSync is a centralized financial web application designed to help individual
 
 | View                      | Preview       |
 | ------------------------- | ------------- |
-| Login | |<img src="assets/images/login.png" width="400" alt="User Login"> |
+| Login              |<img src="designs/login.png" width="400" alt="User Login"> |
 | Budget Page        | <img src="IT211-Budget-Tracker/designs/budget.png" width="400" alt="Budget Page"> |
 | User Dashboard     | <img src="IT211-Budget-Tracker/designs/dashboard.png" width="400" alt="User Dashboard"> |
 | User Dashboard   |<img src="IT211-Budget-Tracker/designs/dashboard2.png" width="400" alt="User Dashboard"> |
