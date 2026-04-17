@@ -30,4 +30,10 @@ SpendSync is a centralized financial web application designed to help individual
 | User Dashboard   |<img src="designs/dashboard2.png" width="400" alt="User Dashboard"> |
 | Transaction      |<img src="designs/transaction.png" width="400" alt="User Transaction"> |
 
+# Contributors 
+1. Epetia, Princess Alexis 
+2. Pagdanganan, Brett Michael
+3. Salinas, Sherilyn
+4. Santos, Realyn
+
 **Developed by Group 1 - IT 211 Web Systems and Technologies**
