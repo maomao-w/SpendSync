@@ -926,6 +926,27 @@ if ($result) {
                 }
             });
         });
+
+        const sections = document.querySelectorAll("section");
+        const navItems = document.querySelectorAll(".nav-links a");
+
+        window.addEventListener("scroll", () => {
+            let current = "home"; // Default to home
+            sections.forEach((section) => {
+                const sectionTop = section.offsetTop;
+                if (pageYOffset >= sectionTop - 150) {
+                    current = section.getAttribute("id");
+                }
+            });
+
+            navItems.forEach((a) => {
+                a.classList.remove("active");
+                // Only add active class if it matches the section and IS NOT the login button
+                if (a.getAttribute("href") === `#${current}` && !a.classList.contains('btn-glow')) {
+                    a.classList.add("active");
+                }
+            });
+        });
     </script>
 </body>
 </html>
