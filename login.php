@@ -268,7 +268,7 @@ if (isset($_GET['error'])) {
 
         <form id="loginForm" action="" method="POST" class="space-y-5">
           <div>
-            <label class="block text-sm font-bold text-slate-700 mb-2">Username or email</label>
+            <label class="block text-sm font-bold text-slate-700 mb-2">Email</label>
             <div class="relative">
               <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <i class="fa-solid fa-envelope text-slate-400"></i>
