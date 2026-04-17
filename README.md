@@ -20,4 +20,14 @@ SpendSync is a centralized financial web application designed to help individual
 3. Update `config.php` with your local database credentials.
 4. Run the project on a local server (XAMPP/WAMP).
 
+## Screenshots 
+
+| View                      | Preview       |
+| ------------------------- | ------------- |
+| Login | |<img src="assets/images/login.png" width="400" alt="User Login"> |
+| Budget Page        | <img src="IT211-Budget-Tracker/designs/budget.png" width="400" alt="Budget Page"> |
+| User Dashboard     | <img src="IT211-Budget-Tracker/designs/dashboard.png" width="400" alt="User Dashboard"> |
+| User Dashboard   |<img src="IT211-Budget-Tracker/designs/dashboard2.png" width="400" alt="User Dashboard"> |
+| Transaction      |<img src="IT211-Budget-Tracker/designs/transaction.png" width="400" alt="User Transaction"> |
+
 **Developed by Group 1 - IT 211 Web Systems and Technologies**
