@@ -72,7 +72,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_transaction'])) {
     $description = mysqli_real_escape_string($conn, $merchant); 
     $category_id = (int)$_POST['category_id']; 
     $date = $_POST['date'];
-    $type = ($category_id == 5) ? 'Income' : 'Expense';
+        // Kunin ang tamang type ('Income' o 'Expense') mula sa categories table base sa category_id
+    $cat_query = mysqli_query($conn, "SELECT type FROM categories WHERE category_id = '$category_id'");
+    $cat_row = mysqli_fetch_assoc($cat_query);
+    
+    // Kung nahanap sa DB, gamitin yung type dun. Kung wala, default as 'Expense'.
+    $type = ($cat_row) ? $cat_row['type'] : 'Expense';
+
     
     $sql = "INSERT INTO transactions (user_id, category_id, type, amount, transaction_date, description, status) 
             VALUES ('$user_id', '$category_id', '$type', '$base_amount', '$date', '$description', 'Completed')";
