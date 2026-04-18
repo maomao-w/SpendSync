@@ -166,10 +166,11 @@ if ($category_query && mysqli_num_rows($category_query) > 0) {
                             </tr>
                         </thead>
                         <tbody>
-                            <?php 
+                                                        <?php 
                             $grand_total = 0;
                             foreach ($expenses_list as $row) {
-                                $cat_name = $cat_names[$row['category_id']] ?? 'Other';
+                                
+                                $cat_name = htmlspecialchars($row['category_name'] ?? 'Uncategorized');
                                 $amt = $row['total'];
                                 $grand_total += $amt;
                                 echo "<tr class='border-b border-slate-100 hover:bg-white/50 transition-colors'>
@@ -178,6 +179,7 @@ if ($category_query && mysqli_num_rows($category_query) > 0) {
                                       </tr>";
                             }
                             ?>
+
                             <tr class="bg-white/40">
                                 <td class="py-5 px-4 font-bold text-slate-800 uppercase text-xs tracking-wider">Grand Total</td>
                                 <td class="py-5 px-4 text-right font-bold text-slate-800 text-xl">₱ <?php echo number_format($grand_total, 2); ?></td>
