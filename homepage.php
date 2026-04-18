@@ -23,9 +23,9 @@ if ($currency != 'PHP') {
     if ($currency == 'USD') { $sym = '$'; $fx_rate = 0.0178; }
     elseif ($currency == 'EUR') { $sym = '€'; $fx_rate = 0.0166; }
     elseif ($currency == 'JPY') { $sym = '¥'; $fx_rate = 2.66; }
-    
+
     $api_url = "https://api.exchangerate-api.com/v4/latest/PHP";
-    
+
     if (function_exists('curl_init')) {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $api_url);
@@ -38,7 +38,7 @@ if ($currency != 'PHP') {
         $ctx = stream_context_create(['http'=>['timeout'=>2]]);
         $response = @file_get_contents($api_url, false, $ctx);
     }
-    
+
     if ($response) {
         $data = json_decode($response, true);
         if (isset($data['rates'][$currency])) {
@@ -65,24 +65,22 @@ if (isset($_GET['ajax_mark_read'])) {
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_transaction'])) {
     $input_amount = (float)$_POST['amount'];
-    
+
     $base_amount = $input_amount / $fx_rate; 
 
     $merchant = $_POST['merchant'] ?? ''; 
     $description = mysqli_real_escape_string($conn, $merchant); 
     $category_id = (int)$_POST['category_id']; 
     $date = $_POST['date'];
-        // Kunin ang tamang type ('Income' o 'Expense') mula sa categories table base sa category_id
-    $cat_query = mysqli_query($conn, "SELECT type FROM categories WHERE category_id = '$category_id'");
-    $cat_row = mysqli_fetch_assoc($cat_query);
     
-    // Kung nahanap sa DB, gamitin yung type dun. Kung wala, default as 'Expense'.
-    $type = ($cat_row) ? $cat_row['type'] : 'Expense';
+    // Kunin ang actual type galing sa categories table (dynamically)
+    $cat_check = mysqli_query($conn, "SELECT type FROM categories WHERE category_id = '$category_id'");
+    $cat_data = mysqli_fetch_assoc($cat_check);
+    $type = $cat_data['type'] ?? 'Expense';
 
-    
     $sql = "INSERT INTO transactions (user_id, category_id, type, amount, transaction_date, description, status) 
             VALUES ('$user_id', '$category_id', '$type', '$base_amount', '$date', '$description', 'Completed')";
-    
+
     try {
         if (mysqli_query($conn, $sql)) {
             if ($pref_push == 1) { // Gagawa lang notif kung naka-ON sa settings
@@ -90,11 +88,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_transaction'])) {
                     $formatted_amt = number_format($input_amount, 2);
                     $clean_desc = mysqli_real_escape_string($conn, $merchant);
                     $notif_msg = ($type == 'Income') ? "Income received: {$sym}{$formatted_amt} for $clean_desc" : "New expense added: {$sym}{$formatted_amt} for $clean_desc";
-                    
+
                     $table_name = 'notifications';
                     $check_table = mysqli_query($conn, "SHOW TABLES LIKE 'notification'");
                     if ($check_table && mysqli_num_rows($check_table) > 0) $table_name = 'notification';
-                    
+
                     mysqli_query($conn, "INSERT INTO $table_name (user_id, message, is_read) VALUES ('$user_id', '$notif_msg', 0)");
                 } catch (Exception $e) { }
             }
@@ -124,27 +122,7 @@ if ($totals_query) {
     $total_expense = 0;
 }
 
-// Kunin ang sum ng lahat ng category budgets ng user para sa buwang ito
-$budget_query = mysqli_query($conn, "
-    SELECT SUM(amount) as total_budget 
-    FROM budgets 
-    WHERE user_id = '$user_id' 
-    AND MONTH(month_year) = '$current_month' 
-    AND YEAR(month_year) = '$current_year'
-");
-
-if ($budget_query) {
-    $budget_data = mysqli_fetch_assoc($budget_query);
-    $monthly_budget_limit = (float)($budget_data['total_budget'] ?? 0);
-} else {
-    $monthly_budget_limit = 0;
-}
-
-// Para maiwasan ang division by zero kapag walang nai-set na budget
-$budget_used_percent = ($monthly_budget_limit > 0) ? round(($total_expense / $monthly_budget_limit) * 100) : 0;
-$budget_remaining_percent = 100 - $budget_used_percent;
-if ($budget_remaining_percent < 0) $budget_remaining_percent = 0;
-
+$monthly_budget_limit = 20000; 
 $budget_used_percent = ($monthly_budget_limit > 0) ? round(($total_expense / $monthly_budget_limit) * 100) : 0;
 $budget_remaining_percent = 100 - $budget_used_percent;
 if ($budget_remaining_percent < 0) $budget_remaining_percent = 0;
@@ -153,9 +131,7 @@ $top_expense_query = mysqli_query($conn, "
     SELECT t.category_id, c.category_name, SUM(t.amount) as total_spent 
     FROM transactions t
     LEFT JOIN categories c ON t.category_id = c.category_id
-    WHERE t.user_id = '$user_id' AND t.type = 'Expense' 
-    AND MONTH(t.transaction_date) = '$current_month' 
-    AND YEAR(t.transaction_date) = '$current_year'
+    WHERE t.user_id = '$user_id' AND t.type = 'Expense' AND MONTH(t.transaction_date) = '$current_month' AND YEAR(t.transaction_date) = '$current_year'
     GROUP BY t.category_id 
     ORDER BY total_spent DESC LIMIT 1
 ");
@@ -163,8 +139,8 @@ $top_expense_query = mysqli_query($conn, "
 $top_expense = mysqli_fetch_assoc($top_expense_query);
 
 if ($top_expense) {
-    // Gamitin ang pangalan sa DB, kung wala, gamitin ang ID bilang fallback
-    $top_cat_name = !empty($top_expense['category_name']) ? $top_expense['category_name'] : 'Category ' . $top_expense['category_id'];
+    $top_cat_name = $top_expense['category_name'] ?? 'Other';
+    // CONVERT EXPENSE PARA SA INSIGHTS
     $top_cat_amount = number_format($top_expense['total_spent'] * $fx_rate, 2);
     $insight_1 = "You spent the most on <span class='font-bold text-rose-500'>{$top_cat_name} ({$sym}{$top_cat_amount})</span> this month.";
 } else {
@@ -224,8 +200,8 @@ if ($pref_push == 0) {
     }
 }
 
-$recent_trans_query = mysqli_query($conn, "SELECT * FROM transactions WHERE user_id = '$user_id' ORDER BY transaction_date DESC, transaction_id DESC LIMIT 15");
-if ($recent_trans_query) {
+// Kukunin ang latest 15, tapos isosort ng ASC para mapunta sa ilalim ang pinakabago
+$recent_trans_query = mysqli_query($conn, "SELECT * FROM (SELECT * FROM transactions WHERE user_id = '$user_id' ORDER BY transaction_date DESC, transaction_id DESC LIMIT 15) sub ORDER BY transaction_date ASC, transaction_id ASC");if ($recent_trans_query) {
     $item_index = 0;
     while ($row = mysqli_fetch_assoc($recent_trans_query)) {
         $is_income = $row['type'] == 'Income';
@@ -233,9 +209,9 @@ if ($recent_trans_query) {
         $amount_formatted = $sym . number_format((float)$row['amount'] * $fx_rate, 2);
         $action_text = $is_income ? 'Income received:' : 'New expense added:';
         $color_class = $is_income ? 'text-emerald-500' : 'text-rose-500';
-        
+
         $is_unread = ($pref_push == 1 && $item_index < $unread_count); 
-        
+
         $notifications[] = [
             'icon' => $is_income ? 'arrow-down-left' : 'shopping-bag',
             'color' => $color_class,
@@ -307,7 +283,7 @@ $notif_count = count($notifications);
         <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-emerald-500">SpendSync</span>
       </div>
     </div>
-    
+
     <nav class="flex-1 py-8 space-y-3 overflow-y-auto overflow-x-hidden">
       <a href="homepage.php" class="sidebar-link active"><i data-feather="layout" class="w-5 h-5"></i> Dashboard</a>
       <a href="transactions.php" class="sidebar-link"><i data-feather="activity" class="w-5 h-5"></i> Transactions</a>
@@ -316,7 +292,7 @@ $notif_count = count($notifications);
       <a href="goals.php" class="sidebar-link"><i data-feather="target" class="w-5 h-5"></i> Goals</a>
       <a href="reports.php" class="sidebar-link"><i data-feather="file-text" class="w-5 h-5"></i> Reports</a>
       <a href="export_csv.php" class="sidebar-link"><i data-feather="download" class="w-5 h-5"></i> Download Records CSV</a>
-      
+
       <form action="import_csv.php" method="POST" enctype="multipart/form-data" class="m-0 p-0">
         <label class="sidebar-link cursor-pointer w-full flex items-center gap-3 m-0">
           <i data-feather="upload" class="w-5 h-5"></i> <span class="flex-1">Import CSV</span>
@@ -324,12 +300,12 @@ $notif_count = count($notifications);
           <input type="hidden" name="import" value="1">
         </label>
       </form>
-      
+
       <div class="pt-6 mt-6 border-t border-white/60">
         <a href="settings.php" class="sidebar-link"><i data-feather="settings" class="w-5 h-5"></i> Settings</a>
       </div>
     </nav>
-    
+
     <div class="p-4 mb-4">
       <a href="logout.php" class="sidebar-link hover:!bg-rose-50 hover:!text-rose-600 text-rose-500 font-bold">
         <i data-feather="log-out" class="w-5 h-5"></i> Logout
@@ -348,7 +324,7 @@ $notif_count = count($notifications);
           <p class="text-muted-foreground text-sm font-medium">Welcome back to your dashboard!</p>
         </div>
       </div>
-      
+
       <div class="flex items-center gap-4 sm:gap-5 ml-auto">
         <button type="button" id="openAddTxModalBtn" class="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-emerald-500 text-white rounded-xl shadow-lg shadow-blue-500/20 hover:shadow-blue-500/50 hover:-translate-y-1 transition-all duration-300 text-sm font-bold">
           <i data-feather="plus" class="w-4 h-4"></i>
@@ -410,8 +386,22 @@ $notif_count = count($notifications);
     </header>
 
     <main class="flex-1 overflow-auto p-6 sm:p-8">
-      
+        <?php if ($total_expense > $monthly_budget_limit): ?>
+      <div class="mb-6 dashboard-card !border-rose-400 !bg-rose-50/80 flex items-center gap-4 animate-fade-in-up py-4">
+          <div class="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shadow-sm shrink-0">
+              <i data-feather="alert-octagon" class="w-6 h-6"></i>
+          </div>
+          <div>
+              <h4 class="text-sm font-bold text-rose-700">Overbudget Warning!</h4>
+              <p class="text-xs font-medium text-rose-600 mt-1">
+                  Your total spending (<strong><?php echo $sym . number_format($total_expense * $fx_rate, 2); ?></strong>) 
+                  has exceeded your set budget of <strong><?php echo $sym . number_format($monthly_budget_limit * $fx_rate, 1); ?></strong>.
+              </p>
+          </div>
+      </div>
+      <?php endif; ?>
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        
         <div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div class="dashboard-card gradient-card-1 text-white relative overflow-hidden flex flex-col justify-center border-0 animate-fade-in-up">
                 <div class="absolute -right-6 -top-6 w-32 h-32 bg-white/20 rounded-full blur-2xl"></div>
@@ -419,8 +409,8 @@ $notif_count = count($notifications);
                     <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-4 backdrop-blur-sm border border-white/30 group-hover:rotate-12 transition-transform duration-300">
                         <i data-feather="arrow-down-left" class="w-5 h-5 text-white"></i>
                     </div>
-                    <p class="text-blue-100 font-medium mb-1">Total Income (Month)</p>
-                    <h3 class="text-4xl font-bold font-title mb-2 tracking-tight"><?php echo $sym; ?> <?php echo number_format($total_income * $fx_rate, 2); ?></h3>
+                    <p class="text-blue-100 font-medium mb-1 text-sm">Total Income (Month)</p>
+                    <h3 class="text-3xl font-bold font-title mb-2 tracking-tight"><?php echo $sym; ?> <?php echo number_format($total_income * $fx_rate, 2); ?></h3>
                 </div>
             </div>
 
@@ -430,8 +420,25 @@ $notif_count = count($notifications);
                     <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-4 backdrop-blur-sm border border-white/30 group-hover:-rotate-12 transition-transform duration-300">
                         <i data-feather="arrow-up-right" class="w-5 h-5 text-white"></i>
                     </div>
-                    <p class="text-emerald-100 font-medium mb-1">Total Expenses (Month)</p>
-                    <h3 class="text-4xl font-bold font-title mb-2 tracking-tight"><?php echo $sym; ?> <?php echo number_format($total_expense * $fx_rate, 2); ?></h3>
+                    <p class="text-emerald-100 font-medium mb-1 text-sm">Total Expenses (Month)</p>
+                    <h3 class="text-3xl font-bold font-title mb-2 tracking-tight"><?php echo $sym; ?> <?php echo number_format($total_expense * $fx_rate, 2); ?></h3>
+                </div>
+            </div>
+
+            <div class="sm:col-span-2 dashboard-card flex items-center justify-between animate-fade-in-up delay-150 py-5">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-sm">
+                        <i data-feather="credit-card" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-700">Wallet Balance</h4>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Remaining Funds</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <h3 class="text-2xl font-bold font-title text-slate-800">
+                        <?php echo $sym; ?> <?php echo number_format(($total_income - $total_expense) * $fx_rate, 2); ?>
+                    </h3>
                 </div>
             </div>
         </div>
@@ -439,10 +446,9 @@ $notif_count = count($notifications);
         <div class="dashboard-card flex flex-col justify-center items-center relative animate-fade-in-up delay-200">
           <div class="w-full flex justify-between items-center mb-2 absolute top-6 left-6 right-6">
             <h3 class="text-base font-bold font-title text-slate-800">Overall Budget</h3>
-            <i data-feather="more-horizontal" class="w-5 h-5 text-slate-400 cursor-pointer hover:text-slate-600 transition-colors"></i>
           </div>
-          <div class="absolute w-32 h-32 bg-gradient-to-tr from-blue-400 to-emerald-300 rounded-full blur-2xl opacity-30 mt-6 animate-pulse"></div>
-          
+            <div class="absolute w-32 h-32 bg-gradient-to-tr from-blue-400 to-emerald-300 rounded-full blur-2xl opacity-30 mt-6 animate-pulse"></div>
+
           <div class="relative w-44 h-44 mt-8 hover:scale-105 transition-transform duration-500">
             <canvas id="budgetProgressChart"></canvas>
             <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -482,7 +488,6 @@ $notif_count = count($notifications);
       </div>
 
       <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
-          
         <div class="xl:col-span-2 dashboard-card flex flex-col animate-fade-in-up delay-300">
             <div class="flex justify-between items-center mb-6">
                 <div class="flex items-center gap-6">
@@ -505,31 +510,22 @@ $notif_count = count($notifications);
         </div>
 
         <div class="dashboard-card flex flex-col animate-fade-in-up delay-300">
-            <div class="flex justify-between items-center mb-6">
+            <div class="flex justify-between items-center mb-4">
                 <h3 class="text-base font-bold font-title text-slate-800">Calendar</h3>
-                <div class="flex gap-2 text-slate-400">
-                    <div class="w-6 h-6 flex items-center justify-center rounded-md hover:bg-blue-50 cursor-pointer hover:text-blue-600 transition-colors"><i data-feather="chevron-left" class="w-4 h-4"></i></div>
-                    <div class="w-6 h-6 flex items-center justify-center rounded-md hover:bg-blue-50 cursor-pointer hover:text-blue-600 transition-colors"><i data-feather="chevron-right" class="w-4 h-4"></i></div>
-                </div>
+                <p class="text-[10px] font-bold text-blue-600 uppercase tracking-widest"><?php echo date('F Y'); ?></p>
             </div>
-            <p class="text-xs font-bold text-blue-600 mb-4"><?php echo date('F, Y'); ?></p>
-            
-            <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400 mb-3">
+            <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400 mb-2">
                 <div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div>
             </div>
-            <div class="grid grid-cols-7 gap-y-3 gap-x-1 text-center text-sm font-bold text-slate-700">
+            <div class="grid grid-cols-7 gap-y-2 gap-x-1 text-center text-xs font-bold text-slate-700">
                 <?php
                 $days_in_month = date('t');
                 $start_day = date('w', strtotime(date('Y-m-01')));
-                $prev_month_days = date('t', strtotime('-1 month'));
                 $today = date('j');
-                for ($x = $start_day - 1; $x >= 0; $x--) {
-                    $d = $prev_month_days - $x;
-                    echo "<div class='calendar-day muted'>$d</div>";
-                }
+                for ($x = 0; $x < $start_day; $x++) echo "<div class='calendar-day muted'></div>";
                 for ($d = 1; $d <= $days_in_month; $d++) {
-                    $active_class = ($d == $today) ? 'active' : '';
-                    echo "<div class='calendar-day $active_class'>$d</div>";
+                    $active = ($d == $today) ? 'active' : '';
+                    echo "<div class='calendar-day $active'>$d</div>";
                 }
                 ?>
             </div>
@@ -560,17 +556,31 @@ $notif_count = count($notifications);
                     <div class="grid grid-cols-2 gap-5">
                         <div class="space-y-2">
                             <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Category</label>
-                            <select name="category_id" class="w-full px-4 py-3 text-sm border border-white rounded-xl bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-medium text-slate-800 transition-colors shadow-sm" required>
-    <option value="" disabled selected>Select a category</option>
-    <?php
-    // Fetch system defaults AND the logged-in user's custom categories
-    $cat_query = mysqli_query($conn, "SELECT * FROM categories WHERE user_id IS NULL OR user_id = '$user_id' ORDER BY type DESC, category_name ASC");
-    while($cat = mysqli_fetch_assoc($cat_query)) {
-        echo "<option value='" . $cat['category_id'] . "'>" . htmlspecialchars($cat['category_name']) . " (" . $cat['type'] . ")</option>";
-    }
-    ?>
-</select>
-
+                            <div class="relative">
+                                <?php
+                                // Fetch categories for the dropdown dynamically
+                                $cat_query = mysqli_query($conn, "SELECT category_id, category_name, type FROM categories WHERE user_id = '$user_id' OR is_default = 1 ORDER BY type DESC, category_name ASC");
+                                ?>
+                                <select name="category_id" class="w-full px-4 py-3 text-sm border border-white/60 rounded-xl bg-white/50 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-medium text-slate-800 transition-all shadow-sm cursor-pointer appearance-none hover:bg-white/80" required>
+                                    <?php if (mysqli_num_rows($cat_query) > 0): ?>
+                                        <option value="" disabled selected>Select a category</option>
+                                        <?php while($c = mysqli_fetch_assoc($cat_query)): ?>
+                                            <option value="<?= $c['category_id'] ?>" class="bg-white text-slate-800">
+                                                <?= htmlspecialchars($c['category_name']) ?> (<?= $c['type'] ?>)
+                                            </option>
+                                        <?php endwhile; ?>
+                                    <?php else: ?>
+                                        <option value="" disabled selected>⚠️ No categories found.</option>
+                                    <?php endif; ?>
+                                </select>
+                                <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                                    <i data-feather="chevron-down" class="w-4 h-4 text-slate-400"></i>
+                                </div>
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-1 font-medium">
+                                <i data-feather="info" class="w-3 h-3 inline"></i> 
+                                Missing a category? <a href="categories.php" class="text-blue-600 font-bold hover:underline">Add or edit here</a>.
+                            </p>
                         </div>
                         <div class="space-y-2">
                             <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Date</label>
@@ -795,7 +805,7 @@ $notif_count = count($notifications);
         const bgObjects = [];
         function spawnObject(geo, mat, yPosRange) {
             const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.set((Math.random() - 0.5) * 24, yPosRange, (Math.random() - 0.5) * 12 - 5);
+            mesh.position.set((Math.random() - 0.5) * 24, yPosRange, (Math.random() - 0.5) * 12 - 15);
             mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
             scene.add(mesh);
             bgObjects.push({
@@ -808,7 +818,7 @@ $notif_count = count($notifications);
         for(let i = 0; i < 40; i++) {
             const randomType = Math.random();
             const yPos = 10 - (Math.random() * 25); 
-            
+
             if(randomType < 0.33) {
                 const coin = spawnObject(new THREE.CylinderGeometry(0.5, 0.5, 0.1, 32), goldCoinMat, yPos);
                 coin.rotation.x = Math.PI / 2;
@@ -836,7 +846,7 @@ $notif_count = count($notifications);
             camera.position.x += (mouseX * 2 - camera.position.x) * 0.05;
             camera.position.y += (2 + -mouseY * 2 - camera.position.y) * 0.05;
             camera.lookAt(0, 0, 0);
-            
+
             bgObjects.forEach((obj) => {
                 obj.mesh.rotation.x += obj.rotX;
                 obj.mesh.rotation.y += obj.rotY;
