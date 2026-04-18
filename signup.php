@@ -16,7 +16,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $errorMsg = "Email is already registered.";
     } else {
         $sql = "INSERT INTO users (full_name, email, password, security_question, security_answer) VALUES ('$full_name', '$email', '$password', '$security_question', '$security_answer')";
-        if (mysqli_query($conn, $sql)) {
+                if (mysqli_query($conn, $sql)) {
+            $new_user_id = mysqli_insert_id($conn);
+
+            $default_cats = "INSERT INTO categories (user_id, category_name, type, is_default) VALUES 
+                ('$new_user_id', 'Food & Dining', 'Expense', 0),
+                ('$new_user_id', 'Transportation', 'Expense', 0),
+                ('$new_user_id', 'Bills & Utilities', 'Expense', 0),
+                ('$new_user_id', 'Salary', 'Income', 0),
+                ('$new_user_id', 'Personal Allowance', 'Income', 0)";
+            
+            mysqli_query($conn, $default_cats);
+
             $success = true;
         } else {
             $errorMsg = "Something went wrong. Please try again.";
