@@ -319,45 +319,45 @@ $delay_counter = 200;
             </div>
             <form method="POST" action="">
                 <div class="p-6 space-y-5">
-                    <div class="space-y-2">
-    <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Category Name</label>
-    <select name="category_id" class="w-full px-4 py-3 text-sm border border-white/60 rounded-xl bg-white/50 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-medium text-slate-800 transition-all shadow-sm cursor-pointer appearance-none hover:bg-white/80" required>
-        <option value="" disabled selected>Select a category</option>
-        <?php
-        $cat_query = mysqli_query($conn, "SELECT category_id, category_name FROM categories WHERE user_id = '$user_id' AND type = 'Expense' ORDER BY category_name ASC");
-        while($cat = mysqli_fetch_assoc($cat_query)) {
-            echo "<option value='{$cat['category_id']}' class='bg-white text-slate-800'>{$cat['category_name']}</option>";
-        }
-        ?>
-    </select>
-</div>
-                                        <div class="space-y-2">
-                        <label class="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">Category Name</label>
-                        
-                        <?php
-                        // Dynamically fetch user categories
-                        $cat_query = mysqli_query($conn, "SELECT * FROM categories WHERE user_id = '$user_id' OR is_default = 1 ORDER BY category_name ASC");
-                        ?>
-                        
-                        <select name="category_id" class="w-full px-4 py-3 text-sm border border-white rounded-xl bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-medium text-slate-800 transition-colors shadow-sm cursor-pointer" required>
-                            <?php if (mysqli_num_rows($cat_query) > 0): ?>
-                                <option value="" disabled selected>Select a category...</option>
-                                <?php while($c = mysqli_fetch_assoc($cat_query)): ?>
-                                    <option value="<?= $c['category_id'] ?>">
-                                        <?= htmlspecialchars($c['category_name']) ?>
-                                    </option>
-                                <?php endwhile; ?>
-                            <?php else: ?>
-                                <option value="" disabled selected>⚠️ No categories yet. Add one first!</option>
-                            <?php endif; ?>
-                        </select>
+    <div class="space-y-2">
+        <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Budget Amount</label>
+        <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 font-bold">₱</span>
+            <input type="number" name="amount" step="0.01" placeholder="0.00" 
+                   class="w-full pl-10 pr-4 py-3 text-sm border border-white/60 rounded-xl bg-white/50 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-bold text-slate-800 transition-all shadow-sm" required>
+        </div>
+    </div>
 
-                        <p class="text-[11px] text-slate-500 mt-1 font-medium">
-                            <i data-feather="info" class="w-3 h-3 inline"></i> 
-                            Missing a category? <a href="categories.php" class="text-blue-600 font-bold hover:underline">Add or edit here</a>.
-                        </p>
-                    </div>
-                </div>
+    <div class="space-y-2">
+        <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Category</label>
+        <div class="relative">
+            <select name="category_id" class="w-full px-4 py-3 text-sm border border-white/60 rounded-xl bg-white/50 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-medium text-slate-800 transition-all shadow-sm cursor-pointer appearance-none hover:bg-white/80" required>
+                <?php
+                // Query para makuha ang categories (naka-sort by type)
+                $cat_query = mysqli_query($conn, "SELECT category_id, category_name, type FROM categories WHERE user_id = '$user_id' ORDER BY type DESC, category_name ASC");
+                
+                if (mysqli_num_rows($cat_query) > 0): ?>
+                    <option value="" disabled selected>Select a category</option>
+                    <?php while($c = mysqli_fetch_assoc($cat_query)): ?>
+                        <option value="<?= $c['category_id'] ?>" class="bg-white text-slate-800">
+                            <?= htmlspecialchars($c['category_name']) ?> (<?= $c['type'] ?>)
+                        </option>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <option value="" disabled selected>⚠️ No categories found.</option>
+                <?php endif; ?>
+            </select>
+            <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                <i data-feather="chevron-down" class="w-4 h-4 text-slate-400"></i>
+            </div>
+        </div>
+        
+        <p class="text-[11px] text-slate-500 mt-1 font-medium">
+            <i data-feather="info" class="w-3 h-3 inline"></i> 
+            Missing a category? <a href="categories.php" class="text-blue-600 font-bold hover:underline">Add or edit here</a>.
+        </p>
+    </div>
+</div>
                 <div class="p-6 border-t border-white/60 flex justify-end gap-3 bg-white/40">
                     <button type="button" id="cancelModalBtn" class="px-5 py-2.5 text-sm font-bold text-slate-600 bg-white/60 border border-white hover:bg-white hover:shadow-sm rounded-xl transition-all">Cancel</button>
                     <button type="submit" name="add_budget" class="px-5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-emerald-500 hover:shadow-lg hover:shadow-blue-500/30 hover:-translate-y-0.5 rounded-xl transition-all">Save Budget</button>
