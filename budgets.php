@@ -9,20 +9,46 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_budget'])) {
     $amount = $_POST['amount'];
     $category_id = (int)$_POST['category_id'];
 
-    $sql = "INSERT INTO budgets (user_id, category_id, amount, month_year) 
-            VALUES ('$user_id', '$category_id', '$amount', '$month_year')";
+    $check_q = mysqli_query($conn, "SELECT * FROM budgets WHERE user_id='$user_id' AND category_id='$category_id' AND month_year='$month_year'");
+    if(mysqli_num_rows($check_q) > 0) {
+        echo "<script>alert('A budget for this category already exists this month. Please edit it instead.'); window.location.href='budgets.php';</script>";
+    } else {
+        $sql = "INSERT INTO budgets (user_id, category_id, amount, month_year) 
+                VALUES ('$user_id', '$category_id', '$amount', '$month_year')";
+
+        if (mysqli_query($conn, $sql)) {
+            header("Location: budgets.php?status=added");
+            exit();
+        }
+    }
+}
+
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['edit_budget'])) {
+    $amount = (float)$_POST['amount'];
+    $new_category_id = (int)$_POST['category_id'];
+    $old_category_id = (int)$_POST['old_category_id'];
+
+    $sql = "UPDATE budgets SET category_id = '$new_category_id', amount = '$amount' 
+            WHERE user_id = '$user_id' AND category_id = '$old_category_id' AND month_year = '$month_year'";
 
     if (mysqli_query($conn, $sql)) {
-        // Redirect with status parameter para ma-trigger ang custom success modal
-        header("Location: budgets.php?status=added");
+        header("Location: budgets.php?status=edited");
         exit();
     }
+}
+
+if (isset($_GET['delete_category_id'])) {
+    $del_cat_id = (int)mysqli_real_escape_string($conn, $_GET['delete_category_id']);
+    $delete_sql = "DELETE FROM budgets WHERE category_id='$del_cat_id' AND user_id='$user_id' AND month_year='$month_year'";
+    mysqli_query($conn, $delete_sql);
+    header("Location: budgets.php?status=deleted");
+    exit();
 }
 
 $total_budget_q = mysqli_query($conn, "SELECT SUM(amount) as total FROM budgets WHERE user_id = '$user_id' AND month_year = '$month_year'");
 $total_budget = mysqli_fetch_assoc($total_budget_q)['total'] ?? 0;
 
-$total_spent_q = mysqli_query($conn, "SELECT SUM(t.amount) as total FROM transactions t INNER JOIN budgets b ON t.category_id = b.category_id WHERE t.user_id = '$user_id' AND t.type = 'Expense' AND DATE_FORMAT(t.transaction_date, '%Y-%m-01') = '$month_year' AND b.month_year = '$month_year'");
+$total_spent_q = mysqli_query($conn, "SELECT SUM(amount) as total FROM transactions WHERE user_id = '$user_id' AND type = 'Expense' AND DATE_FORMAT(transaction_date, '%Y-%m-01') = '$month_year'");
 $total_spent = mysqli_fetch_assoc($total_spent_q)['total'] ?? 0;
 
 $remaining_budget = $total_budget - $total_spent;
@@ -210,7 +236,6 @@ $spent_percent = ($total_budget > 0) ? min(100, round(($total_spent / $total_bud
           <i data-feather="menu" class="w-6 h-6"></i>
         </button>
       </div>
-      <!-- Inalis ang notification bell at profile picture -->
     </header>
 
     <main class="flex-1 overflow-auto p-6 sm:p-8">
@@ -230,7 +255,7 @@ $spent_percent = ($total_budget > 0) ? min(100, round(($total_spent / $total_bud
         <div class="relative z-10">
           <h2 class="text-blue-100 font-bold tracking-wider uppercase text-xs mb-2">Total Monthly Budget</h2>
           <div class="flex items-end gap-3 mb-6">
-            <span class="text-5xl font-bold font-title tracking-tight">₱<?php echo number_format(max(0, $remaining_budget), 2); ?></span>
+            <span class="text-5xl font-bold font-title tracking-tight">₱<?php echo number_format($total_spent, 2); ?></span>
             <span class="text-blue-200 font-medium mb-1.5">/ ₱<?php echo number_format($total_budget, 2); ?></span>
           </div>
           <div class="space-y-3">
@@ -251,16 +276,16 @@ $spent_percent = ($total_budget > 0) ? min(100, round(($total_spent / $total_bud
         <?php
         $budgets_q = mysqli_query($conn, "SELECT b.*, c.category_name FROM budgets b JOIN categories c ON b.category_id = c.category_id WHERE b.user_id = '$user_id' AND b.month_year = '$month_year'");
         $themes = [
-    ['bg' => 'bg-indigo-100', 'text' => 'text-indigo-600', 'bar' => 'bg-indigo-500', 'icon' => 'grid'],
-    ['bg' => 'bg-emerald-100', 'text' => 'text-emerald-600', 'bar' => 'bg-emerald-500', 'icon' => 'shopping-cart'],
-    ['bg' => 'bg-amber-100', 'text' => 'text-amber-600', 'bar' => 'bg-amber-500', 'icon' => 'coffee'],
-    ['bg' => 'bg-rose-100', 'text' => 'text-rose-600', 'bar' => 'bg-rose-500', 'icon' => 'truck'],
-    ['bg' => 'bg-cyan-100', 'text' => 'text-cyan-600', 'bar' => 'bg-cyan-500', 'icon' => 'home'],
-    ['bg' => 'bg-blue-100', 'text' => 'text-blue-600', 'bar' => 'bg-blue-500', 'icon' => 'film'],
-    ['bg' => 'bg-purple-100', 'text' => 'text-purple-600', 'bar' => 'bg-purple-500', 'icon' => 'zap']
-];
+            ['bg' => 'bg-indigo-100', 'text' => 'text-indigo-600', 'bar' => 'bg-indigo-500', 'icon' => 'grid'],
+            ['bg' => 'bg-emerald-100', 'text' => 'text-emerald-600', 'bar' => 'bg-emerald-500', 'icon' => 'shopping-cart'],
+            ['bg' => 'bg-amber-100', 'text' => 'text-amber-600', 'bar' => 'bg-amber-500', 'icon' => 'coffee'],
+            ['bg' => 'bg-rose-100', 'text' => 'text-rose-600', 'bar' => 'bg-rose-500', 'icon' => 'truck'],
+            ['bg' => 'bg-cyan-100', 'text' => 'text-cyan-600', 'bar' => 'bg-cyan-500', 'icon' => 'home'],
+            ['bg' => 'bg-blue-100', 'text' => 'text-blue-600', 'bar' => 'bg-blue-500', 'icon' => 'film'],
+            ['bg' => 'bg-purple-100', 'text' => 'text-purple-600', 'bar' => 'bg-purple-500', 'icon' => 'zap']
+        ];
 
-$delay_counter = 200; 
+        $delay_counter = 200;
 
         while ($b = mysqli_fetch_assoc($budgets_q)) {
             $cid = $b['category_id'];
@@ -293,6 +318,14 @@ $delay_counter = 200;
                   </div>
                   <h3 class='font-bold font-title text-lg $text_class'>$cat_name</h3>
                 </div>
+                <div class='flex items-center gap-1'>
+                    <button onclick='openEditModal({$cid}, {$limit})' class='text-slate-400 hover:text-blue-500 transition-colors p-2' title='Edit Budget'>
+                        <i data-feather='edit-2' class='w-4 h-4'></i>
+                    </button>
+                    <a href='budgets.php?delete_category_id={$cid}' onclick='return confirm(\"Are you sure you want to delete this budget?\")' class='text-slate-400 hover:text-rose-500 transition-colors p-2' title='Delete Budget'>
+                        <i data-feather='trash-2' class='w-4 h-4'></i>
+                    </a>
+                </div>
               </div>
               <div class='flex items-end gap-2 mb-4'>
                 <span class='text-2xl font-bold font-title $amount_class'>₱" . number_format($cat_spent, 2) . "</span>
@@ -310,7 +343,6 @@ $delay_counter = 200;
       </div>
     </main>
 
-    <!-- MODAL FOR ADD BUDGET (same style as transactions.php) -->
     <div id="modalBackdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div id="budgetModal" class="bg-white/80 backdrop-blur-2xl border border-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden hidden animate-modal">
             <div class="flex justify-between items-center p-6 border-b border-white/60 bg-white/40">
@@ -319,62 +351,104 @@ $delay_counter = 200;
             </div>
             <form method="POST" action="">
                 <div class="p-6 space-y-5">
-    <div class="space-y-2">
-        <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Budget Amount</label>
-        <div class="relative">
-            <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 font-bold">₱</span>
-            <input type="number" name="amount" step="0.01" placeholder="0.00" 
-                   class="w-full pl-10 pr-4 py-3 text-sm border border-white/60 rounded-xl bg-white/50 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-bold text-slate-800 transition-all shadow-sm" required>
-        </div>
-    </div>
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Budget Amount</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 font-bold">₱</span>
+                            <input type="number" name="amount" step="0.01" placeholder="0.00" 
+                                   class="w-full pl-10 pr-4 py-3 text-sm border border-white/60 rounded-xl bg-white/50 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-bold text-slate-800 transition-all shadow-sm" required>
+                        </div>
+                    </div>
 
-    <div class="space-y-2">
-        <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Category</label>
-        <div class="relative">
-            <select name="category_id" class="w-full px-4 py-3 text-sm border border-white/60 rounded-xl bg-white/50 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-medium text-slate-800 transition-all shadow-sm cursor-pointer appearance-none hover:bg-white/80" required>
-                <?php
-                // Query para makuha ang categories (naka-sort by type)
-                $cat_query = mysqli_query($conn, "SELECT category_id, category_name, type FROM categories WHERE user_id = '$user_id' ORDER BY type DESC, category_name ASC");
-                
-                if (mysqli_num_rows($cat_query) > 0): ?>
-                    <option value="" disabled selected>Select a category</option>
-                    <?php while($c = mysqli_fetch_assoc($cat_query)): ?>
-                        <option value="<?= $c['category_id'] ?>" class="bg-white text-slate-800">
-                            <?= htmlspecialchars($c['category_name']) ?> (<?= $c['type'] ?>)
-                        </option>
-                    <?php endwhile; ?>
-                <?php else: ?>
-                    <option value="" disabled selected>⚠️ No categories found.</option>
-                <?php endif; ?>
-            </select>
-            <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                <i data-feather="chevron-down" class="w-4 h-4 text-slate-400"></i>
-            </div>
-        </div>
-        
-        <p class="text-[11px] text-slate-500 mt-1 font-medium">
-            <i data-feather="info" class="w-3 h-3 inline"></i> 
-            Missing a category? <a href="categories.php" class="text-blue-600 font-bold hover:underline">Add or edit here</a>.
-        </p>
-    </div>
-</div>
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Category</label>
+                        <div class="relative">
+                            <select name="category_id" class="w-full px-4 py-3 text-sm border border-white/60 rounded-xl bg-white/50 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-medium text-slate-800 transition-all shadow-sm cursor-pointer appearance-none hover:bg-white/80" required>
+                                <?php
+                                $cat_query = mysqli_query($conn, "SELECT category_id, category_name, type FROM categories WHERE user_id = '$user_id' ORDER BY type DESC, category_name ASC");
+
+                                if (mysqli_num_rows($cat_query) > 0): ?>
+                                    <option value="" disabled selected>Select a category</option>
+                                    <?php while($c = mysqli_fetch_assoc($cat_query)): ?>
+                                        <option value="<?= $c['category_id'] ?>" class="bg-white text-slate-800">
+                                            <?= htmlspecialchars($c['category_name']) ?> (<?= $c['type'] ?>)
+                                        </option>
+                                    <?php endwhile; ?>
+                                <?php else: ?>
+                                    <option value="" disabled selected>⚠️ No categories found.</option>
+                                <?php endif; ?>
+                            </select>
+                            <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                                <i data-feather="chevron-down" class="w-4 h-4 text-slate-400"></i>
+                            </div>
+                        </div>
+
+                        <p class="text-[11px] text-slate-500 mt-1 font-medium">
+                            <i data-feather="info" class="w-3 h-3 inline"></i> 
+                            Missing a category? <a href="categories.php" class="text-blue-600 font-bold hover:underline">Add or edit here</a>.
+                        </p>
+                    </div>
+                </div>
                 <div class="p-6 border-t border-white/60 flex justify-end gap-3 bg-white/40">
                     <button type="button" id="cancelModalBtn" class="px-5 py-2.5 text-sm font-bold text-slate-600 bg-white/60 border border-white hover:bg-white hover:shadow-sm rounded-xl transition-all">Cancel</button>
                     <button type="submit" name="add_budget" class="px-5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-emerald-500 hover:shadow-lg hover:shadow-blue-500/30 hover:-translate-y-0.5 rounded-xl transition-all">Save Budget</button>
                 </div>
             </form>
         </div>
+        
+        <div id="editBudgetModal" class="bg-white/80 backdrop-blur-2xl border border-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden hidden animate-modal">
+            <div class="flex justify-between items-center p-6 border-b border-white/60 bg-white/40">
+                <h2 class="text-xl font-bold font-title text-slate-800">Edit Budget</h2>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:bg-white hover:text-rose-500 p-2 rounded-xl transition-all shadow-sm border border-transparent hover:border-white"><i data-feather="x" class="w-5 h-5"></i></button>
+            </div>
+            <form method="POST" action="">
+                <input type="hidden" name="old_category_id" id="old_category_id">
+                <div class="p-6 space-y-5">
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Budget Amount</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 font-bold">₱</span>
+                            <input type="number" name="amount" id="edit_amount" step="0.01" placeholder="0.00" 
+                                   class="w-full pl-10 pr-4 py-3 text-sm border border-white/60 rounded-xl bg-white/50 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-bold text-slate-800 transition-all shadow-sm" required>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Category</label>
+                        <div class="relative">
+                            <select name="category_id" id="edit_category_id" class="w-full px-4 py-3 text-sm border border-white/60 rounded-xl bg-white/50 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-medium text-slate-800 transition-all shadow-sm cursor-pointer appearance-none hover:bg-white/80" required>
+                                <?php
+                                $cat_query_edit = mysqli_query($conn, "SELECT category_id, category_name, type FROM categories WHERE user_id = '$user_id' ORDER BY type DESC, category_name ASC");
+                                if (mysqli_num_rows($cat_query_edit) > 0): ?>
+                                    <?php while($c = mysqli_fetch_assoc($cat_query_edit)): ?>
+                                        <option value="<?= $c['category_id'] ?>" class="bg-white text-slate-800">
+                                            <?= htmlspecialchars($c['category_name']) ?> (<?= $c['type'] ?>)
+                                        </option>
+                                    <?php endwhile; ?>
+                                <?php endif; ?>
+                            </select>
+                            <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                                <i data-feather="chevron-down" class="w-4 h-4 text-slate-400"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6 border-t border-white/60 flex justify-end gap-3 bg-white/40">
+                    <button type="button" onclick="closeEditModal()" class="px-5 py-2.5 text-sm font-bold text-slate-600 bg-white/60 border border-white hover:bg-white hover:shadow-sm rounded-xl transition-all">Cancel</button>
+                    <button type="submit" name="edit_budget" class="px-5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-emerald-500 hover:shadow-lg hover:shadow-blue-500/30 hover:-translate-y-0.5 rounded-xl transition-all">Save Changes</button>
+                </div>
+            </form>
+        </div>
     </div>
 
-    <!-- SUCCESS MODAL (same style as transactions.php) -->
-    <?php if (isset($_GET['status']) && $_GET['status'] == 'added'): ?>
+    <?php if (isset($_GET['status']) && in_array($_GET['status'], ['added', 'edited', 'deleted'])): ?>
     <div id="successStatusModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4 transition-opacity duration-300">
        <div class="bg-white/80 backdrop-blur-2xl border border-white rounded-[2rem] shadow-2xl w-full max-w-sm p-6 text-center animate-modal">
          <div class="w-16 h-16 bg-emerald-100 text-emerald-500 border-emerald-200 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner border">
            <i data-feather="check-circle" class="w-8 h-8"></i>
          </div>
          <h3 class="text-xl font-bold font-title text-slate-800 mb-2">Success!</h3>
-         <p class="text-slate-500 font-medium mb-6">Budget has been created successfully!</p>
+         <p class="text-slate-500 font-medium mb-6">Budget has been <?= $_GET['status'] == 'added' ? 'created' : ($_GET['status'] == 'edited' ? 'updated' : 'deleted') ?> successfully!</p>
          <button onclick="closeSuccessStatusModal()" class="w-full px-5 py-3 text-sm font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-400 hover:shadow-lg hover:-translate-y-0.5 rounded-xl transition-all">Continue</button>
        </div>
     </div>
@@ -409,16 +483,45 @@ $delay_counter = 200;
     const cancelModalBtn = document.getElementById('cancelModalBtn');
     const modalBackdrop = document.getElementById('modalBackdrop');
     const budgetModal = document.getElementById('budgetModal');
+    const editModal = document.getElementById('editBudgetModal');
 
-    function openModal() { modalBackdrop.classList.remove('hidden'); budgetModal.classList.remove('hidden'); }
-    function closeModal() { modalBackdrop.classList.add('hidden'); budgetModal.classList.add('hidden'); }
+    function openModal() { 
+        modalBackdrop.classList.remove('hidden'); 
+        budgetModal.classList.remove('hidden'); 
+        editModal.classList.add('hidden');
+    }
+    
+    function closeModal() { 
+        modalBackdrop.classList.add('hidden'); 
+        budgetModal.classList.add('hidden'); 
+    }
+
+    function openEditModal(categoryId, amount) {
+        document.getElementById('edit_amount').value = amount;
+        document.getElementById('edit_category_id').value = categoryId;
+        document.getElementById('old_category_id').value = categoryId;
+        
+        modalBackdrop.classList.remove('hidden');
+        budgetModal.classList.add('hidden');
+        editModal.classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+        modalBackdrop.classList.add('hidden');
+        editModal.classList.add('hidden');
+    }
 
     openModalBtn?.addEventListener('click', openModal);
     closeModalBtn?.addEventListener('click', closeModal);
     cancelModalBtn?.addEventListener('click', closeModal);
-    modalBackdrop?.addEventListener('click', (e) => { if (e.target === modalBackdrop) closeModal(); });
+    
+    modalBackdrop?.addEventListener('click', (e) => { 
+        if (e.target === modalBackdrop) {
+            closeModal();
+            closeEditModal();
+        }
+    });
 
-    // Function to close success modal and remove ?status from URL
     function closeSuccessStatusModal() {
         const modal = document.getElementById('successStatusModal');
         if(modal) {
@@ -429,7 +532,6 @@ $delay_counter = 200;
         }
     }
 
-    // Three.js background (unchanged)
     try {
         const container = document.getElementById('webgl-container');
         const scene = new THREE.Scene();
