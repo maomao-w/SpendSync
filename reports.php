@@ -6,13 +6,14 @@ $user_id = $_SESSION['user_id'];
 
 $category_query = mysqli_query($conn, "
     SELECT 
-        DATE_FORMAT(transaction_date, '%M %Y') as month_label,
-        category_id, 
-        SUM(amount) as total 
-    FROM transactions 
-    WHERE user_id = '$user_id' AND type = 'Expense'
-    GROUP BY YEAR(transaction_date), MONTH(transaction_date), category_id
-    ORDER BY YEAR(transaction_date) DESC, MONTH(transaction_date) DESC
+        DATE_FORMAT(t.transaction_date, '%M %Y') as month_label,
+        c.category_name, 
+        SUM(t.amount) as total 
+    FROM transactions t
+    LEFT JOIN categories c ON t.category_id = c.category_id
+    WHERE t.user_id = '$user_id' AND t.type = 'Expense'
+    GROUP BY YEAR(t.transaction_date), MONTH(t.transaction_date), t.category_id
+    ORDER BY YEAR(t.transaction_date) DESC, MONTH(t.transaction_date) DESC
 ");
 
 $monthly_expenses = [];
@@ -22,9 +23,8 @@ if ($category_query && mysqli_num_rows($category_query) > 0) {
         $monthly_expenses[$month_label][] = $row;
     }
 }
-
-$cat_names = [1 => 'Electronics', 2 => 'Groceries', 3 => 'Food', 4 => 'Transport', 5 => 'Income', 6 => 'Housing', 7 => 'Entertainment', 8 => 'Utilities'];
 ?>
+    
 <!DOCTYPE html>
 <html lang="en">
 <head>
