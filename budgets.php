@@ -331,12 +331,31 @@ $delay_counter = 200;
         ?>
     </select>
 </div>
-                    <div class="space-y-2">
-                        <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Monthly Amount</label>
-                        <div class="relative">
-                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₱</span>
-                            <input type="number" step="0.01" name="amount" placeholder="0.00" class="w-full pl-9 pr-4 py-3 text-sm border border-white rounded-xl bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-bold text-slate-800 transition-colors shadow-sm" required>
-                        </div>
+                                        <div class="space-y-2">
+                        <label class="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">Category Name</label>
+                        
+                        <?php
+                        // Dynamically fetch user categories
+                        $cat_query = mysqli_query($conn, "SELECT * FROM categories WHERE user_id = '$user_id' OR is_default = 1 ORDER BY category_name ASC");
+                        ?>
+                        
+                        <select name="category_id" class="w-full px-4 py-3 text-sm border border-white rounded-xl bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-medium text-slate-800 transition-colors shadow-sm cursor-pointer" required>
+                            <?php if (mysqli_num_rows($cat_query) > 0): ?>
+                                <option value="" disabled selected>Select a category...</option>
+                                <?php while($c = mysqli_fetch_assoc($cat_query)): ?>
+                                    <option value="<?= $c['category_id'] ?>">
+                                        <?= htmlspecialchars($c['category_name']) ?>
+                                    </option>
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <option value="" disabled selected>⚠️ No categories yet. Add one first!</option>
+                            <?php endif; ?>
+                        </select>
+
+                        <p class="text-[11px] text-slate-500 mt-1 font-medium">
+                            <i data-feather="info" class="w-3 h-3 inline"></i> 
+                            Missing a category? <a href="categories.php" class="text-blue-600 font-bold hover:underline">Add or edit here</a>.
+                        </p>
                     </div>
                 </div>
                 <div class="p-6 border-t border-white/60 flex justify-end gap-3 bg-white/40">
