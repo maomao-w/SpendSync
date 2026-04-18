@@ -21,6 +21,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_goal'])) {
     }
 }
 
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_funds'])) {
+    $fund_goal_id = mysqli_real_escape_string($conn, $_POST['fund_goal_id']);
+    $add_amount = (float)$_POST['add_amount'];
+
+    $sql = "UPDATE goals SET current_amount = current_amount + $add_amount WHERE id = '$fund_goal_id' AND user_id = '$user_id'";
+    
+    if (mysqli_query($conn, $sql)) {
+        header("Location: goals.php?status=updated");
+        exit();
+    } else {
+        echo "<script>alert('Error: " . mysqli_error($conn) . "'); window.location.href='goals.php';</script>";
+    }
+}
+
 if (isset($_GET['delete'])) {
     $delete_id = mysqli_real_escape_string($conn, $_GET['delete']);
     $delete_sql = "DELETE FROM goals WHERE id='$delete_id' AND user_id='$user_id'";
@@ -175,7 +189,7 @@ if (isset($_GET['delete'])) {
 
   <div class="flex-1 flex flex-col h-full overflow-hidden relative z-10">
 
-    <header class="h-24 flex items-center justify-between px-8 sm:px-10 shrink-0 z-10 relative">
+    <header class="h-24 flex items-center justify-between px-8 sm:px-10 shrink-0 z-10 relative border-b border-white/40">
       <div class="flex items-center gap-4 z-20">
         <button id="menuButton" class="md:hidden p-2.5 bg-white/60 backdrop-blur-md rounded-xl border border-white text-slate-700">
           <i data-feather="menu" class="w-6 h-6"></i>
@@ -239,9 +253,14 @@ if (isset($_GET['delete'])) {
                         <p class='text-[11px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1 mt-0.5'><i data-feather='calendar' class='w-3 h-3'></i> Target: {$formatted_date}</p>
                       </div>
                     </div>
-                    <a href='goals.php?delete={$goal_id}' onclick='return confirm(\"Are you sure you want to delete this goal?\")' class='text-slate-400 hover:text-rose-500 transition-colors p-2' title='Delete Goal'>
-                        <i data-feather='trash-2' class='w-4 h-4'></i>
-                    </a>
+                    <div class='flex items-center gap-1'>
+                        <button onclick='openAddFundsModal({$goal_id})' class='text-slate-400 hover:text-emerald-500 transition-colors p-2' title='Add Funds'>
+                            <i data-feather='plus-circle' class='w-4 h-4'></i>
+                        </button>
+                        <a href='goals.php?delete={$goal_id}' onclick='return confirm(\"Are you sure you want to delete this goal?\")' class='text-slate-400 hover:text-rose-500 transition-colors p-2' title='Delete Goal'>
+                            <i data-feather='trash-2' class='w-4 h-4'></i>
+                        </a>
+                    </div>
                   </div>
                   
                   <div class='mb-3 flex justify-between items-end'>
@@ -323,9 +342,34 @@ if (isset($_GET['delete'])) {
                 </div>
             </form>
         </div>
+
+        <div id="addFundsModal" class="bg-white/80 backdrop-blur-2xl border border-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden hidden animate-modal">
+            <div class="flex justify-between items-center p-6 border-b border-white/60 bg-white/40">
+                <h2 class="text-xl font-bold font-title text-slate-800">Add Funds</h2>
+                <button onclick="closeAddFundsModal()" class="text-slate-400 hover:bg-white hover:text-rose-500 p-2 rounded-xl transition-all shadow-sm border border-transparent hover:border-white">
+                    <i data-feather="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form method="POST" action="">
+                <input type="hidden" name="fund_goal_id" id="fund_goal_id">
+                <div class="p-6 space-y-4">
+                    <div class="space-y-2">
+                        <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Amount to Add</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₱</span>
+                            <input type="number" step="0.01" name="add_amount" placeholder="0.00" class="w-full pl-9 pr-4 py-3 text-sm border border-white rounded-xl bg-white/60 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 font-bold text-slate-800 transition-colors shadow-sm" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6 border-t border-white/60 flex justify-end gap-3 bg-white/40">
+                    <button type="button" onclick="closeAddFundsModal()" class="px-5 py-2.5 text-sm font-bold text-slate-600 bg-white/60 border border-white hover:bg-white hover:shadow-sm rounded-xl transition-all">Cancel</button>
+                    <button type="submit" name="add_funds" class="px-5 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-400 hover:shadow-lg hover:shadow-emerald-500/30 hover:-translate-y-0.5 rounded-xl transition-all">Confirm</button>
+                </div>
+            </form>
+        </div>
     </div>
 
-    <?php if (isset($_GET['status']) && ($_GET['status'] == 'added' || $_GET['status'] == 'deleted')): ?>
+    <?php if (isset($_GET['status']) && in_array($_GET['status'], ['added', 'deleted', 'updated'])): ?>
     <div id="successStatusModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4 transition-opacity duration-300">
        <div class="bg-white/80 backdrop-blur-2xl border border-white rounded-[2rem] shadow-2xl w-full max-w-sm p-6 text-center animate-modal">
          <div class="w-16 h-16 bg-emerald-100 text-emerald-500 border-emerald-200 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner border">
@@ -365,14 +409,40 @@ if (isset($_GET['delete'])) {
     const cancelModalBtn = document.getElementById('cancelModalBtn');
     const modalBackdrop = document.getElementById('modalBackdrop');
     const goalModal = document.getElementById('goalModal');
+    const addFundsModal = document.getElementById('addFundsModal');
 
-    function openModal() { modalBackdrop.classList.remove('hidden'); goalModal.classList.remove('hidden'); }
-    function closeModal() { modalBackdrop.classList.add('hidden'); goalModal.classList.add('hidden'); }
+    function openModal() { 
+        modalBackdrop.classList.remove('hidden'); 
+        goalModal.classList.remove('hidden'); 
+        addFundsModal.classList.add('hidden');
+    }
+    
+    function closeModal() { 
+        modalBackdrop.classList.add('hidden'); 
+        goalModal.classList.add('hidden'); 
+    }
+
+    function openAddFundsModal(id) {
+        document.getElementById('fund_goal_id').value = id;
+        modalBackdrop.classList.remove('hidden');
+        goalModal.classList.add('hidden');
+        addFundsModal.classList.remove('hidden');
+    }
+
+    function closeAddFundsModal() {
+        modalBackdrop.classList.add('hidden');
+        addFundsModal.classList.add('hidden');
+    }
 
     openModalBtn?.addEventListener('click', openModal);
     closeModalBtn?.addEventListener('click', closeModal);
     cancelModalBtn?.addEventListener('click', closeModal);
-    modalBackdrop?.addEventListener('click', (e) => { if (e.target === modalBackdrop) closeModal(); });
+    modalBackdrop?.addEventListener('click', (e) => { 
+        if (e.target === modalBackdrop) {
+            closeModal(); 
+            closeAddFundsModal();
+        }
+    });
 
     function closeSuccessStatusModal() {
         const modal = document.getElementById('successStatusModal');
