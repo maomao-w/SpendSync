@@ -380,15 +380,28 @@ $total_pages = ceil($total_records / $limit);
                     <div class="grid grid-cols-2 gap-5">
                         <div class="space-y-2">
                             <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Category</label>
-                            <select name="category_id" class="w-full px-4 py-3 text-sm border border-white rounded-xl bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-medium text-slate-800 transition-colors shadow-sm" required>
-                              <option value="" disabled selected>Select a category</option>
-                              <?php
-                              $cat_query = mysqli_query($conn, "SELECT * FROM categories WHERE user_id IS NULL OR user_id = '$user_id' ORDER BY type DESC, category_name ASC");
-                              while($cat = mysqli_fetch_assoc($cat_query)) {
-                                  echo "<option value='" . $cat['category_id'] . "'>" . htmlspecialchars($cat['category_name']) . " (" . $cat['type'] . ")</option>";
-                              }
-                              ?>
-                            </select>
+                            <?php
+// Kunin ang categories (Default + Custom ng User)
+$cat_query = mysqli_query($conn, "SELECT * FROM categories WHERE user_id = '$user_id' OR is_default = 1 ORDER BY category_name ASC");
+?>
+
+<select name="category_id" class="w-full px-4 py-3 text-sm border border-white rounded-xl bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500/30 font-medium text-slate-800 transition-colors shadow-sm" required>
+    <?php if (mysqli_num_rows($cat_query) > 0): ?>
+        <option value="" disabled selected>Pumili ng category...</option>
+        <?php while($c = mysqli_fetch_assoc($cat_query)): ?>
+            <option value="<?= $c['category_id'] ?>">
+                <?= htmlspecialchars($c['category_name']) ?> (<?= $c['type'] ?>)
+            </option>
+        <?php endwhile; ?>
+    <?php else: ?>
+        <option value="" disabled selected>⚠️ No categories found.</option>
+    <?php endif; ?>
+</select>
+
+<p class="text-[11px] text-slate-500 mt-2 font-medium">
+    <i data-feather="info" class="w-3 h-3 inline"></i> 
+    Wala sa listahan? <a href="categories.php" class="text-blue-600 font-bold hover:underline">Mag-add o mag-edit dito</a>.
+</p>
                         </div>
                         <div class="space-y-2">
                             <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Date</label>
