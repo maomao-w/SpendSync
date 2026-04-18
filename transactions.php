@@ -18,7 +18,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['add_transaction'])) {
     $description = mysqli_real_escape_string($conn, $merchant); 
     $category_id = (int)$_POST['category_id']; 
     $date = $_POST['date'];
-    $type = ($category_id == 5) ? 'Income' : 'Expense';
+
+$type_check = mysqli_query($conn, "SELECT type FROM categories WHERE category_id = '$category_id'");
+$type_data = mysqli_fetch_assoc($type_check);
+$type = $type_data['type'] ?? 'Expense'; 
+
 
     $sql = "INSERT INTO transactions (user_id, category_id, type, amount, transaction_date, description, status) 
             VALUES ('$user_id', '$category_id', '$type', '$amount', '$date', '$description', 'Completed')";
